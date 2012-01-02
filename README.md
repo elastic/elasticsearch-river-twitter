@@ -22,7 +22,7 @@ Creating the twitter river can be done using:
 	    "type" : "twitter",
 	    "twitter" : {
 	        "user" : "twitter_user",
-	        "password" : "twitter_passowrd"
+	        "password" : "twitter_password"
 	    },
 	    "index" : {
 	        "index" : "my_twitter_river",
@@ -45,7 +45,7 @@ Filtered stream can also be supported (as per the twitter stream API). Filter st
 	    "type" : "twitter",
 	    "twitter" : {
 	        "user" : "me",
-	        "passowrd" : "123456",
+	        "password" : "123456",
 	        "filter" : {
 	            "tracks" : "test,something,please",
 	            "follow" : "111,222,333",
@@ -60,7 +60,7 @@ Here is an array based configuration example:
 	    "type" : "twitter",
 	    "twitter" : {
 	        "user" : "me",
-	        "passowrd" : "123456",
+	        "password" : "123456",
 	        "filter" : {
 	            "tracks" : ["test", "something"],
 	            "follow" : [111, 222, 333],
