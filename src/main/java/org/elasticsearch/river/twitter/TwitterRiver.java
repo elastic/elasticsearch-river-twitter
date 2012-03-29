@@ -62,6 +62,11 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     private String oauthAccessToken = null;
     private String oauthAccessTokenSecret = null;
 
+    private String proxyHost;
+    private String proxyPort;
+    private String proxyUser;
+    private String proxyPassword;
+
     private final String indexName;
 
     private final String typeName;
@@ -119,6 +124,21 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 }
                 if (oauth.containsKey("access_token_secret")) {
                     oauthAccessTokenSecret = XContentMapValues.nodeStringValue(oauth.get("access_token_secret"), null);
+                }
+            }
+            if (twitterSettings.containsKey("proxy")) {
+                Map<String, Object> proxy = (Map<String, Object>) twitterSettings.get("proxy");
+                if (proxy.containsKey("host")) {
+                    proxyHost = XContentMapValues.nodeStringValue(proxy.get("host"), null);
+                }
+                if (proxy.containsKey("port")) {
+                    proxyPort = XContentMapValues.nodeStringValue(proxy.get("port"), null);
+                }
+                if (proxy.containsKey("user")) {
+                    proxyUser = XContentMapValues.nodeStringValue(proxy.get("user"), null);
+                }
+                if (proxy.containsKey("password")) {
+                    proxyPassword = XContentMapValues.nodeStringValue(proxy.get("password"), null);
                 }
             }
             streamType = XContentMapValues.nodeStringValue(twitterSettings.get("type"), "sample");
@@ -236,6 +256,10 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         } else {
             cb.setUser(user).setPassword(password);
         }
+        if (proxyHost != null) cb.setHttpProxyHost(proxyHost);
+        if (proxyPort != null) cb.setHttpProxyPort(Integer.parseInt(proxyPort));
+        if (proxyUser != null) cb.setHttpProxyUser(proxyUser);
+        if (proxyPassword != null) cb.setHttpProxyHost(proxyPassword);
         stream = new TwitterStreamFactory(cb.build()).getInstance();
         stream.addListener(new StatusHandler());
     }
@@ -305,6 +329,10 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             } else {
                 cb.setUser(user).setPassword(password);
             }
+            if (proxyHost != null) cb.setHttpProxyHost(proxyHost);
+            if (proxyPort != null) cb.setHttpProxyPort(Integer.parseInt(proxyPort));
+            if (proxyUser != null) cb.setHttpProxyUser(proxyUser);
+            if (proxyPassword != null) cb.setHttpProxyHost(proxyPassword);
             stream = new TwitterStreamFactory(cb.build()).getInstance();
             stream.addListener(new StatusHandler());
 
