@@ -457,6 +457,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 builder.field("screen_name", status.getUser().getScreenName());
                 builder.field("location", status.getUser().getLocation());
                 builder.field("description", status.getUser().getDescription());
+								builder.field("followers_count", status.getUser().getFollowersCount());
                 builder.endObject();
 
                 builder.endObject();
