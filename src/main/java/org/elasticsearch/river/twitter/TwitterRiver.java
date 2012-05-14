@@ -31,6 +31,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.river.AbstractRiverComponent;
@@ -40,6 +41,7 @@ import org.elasticsearch.river.RiverSettings;
 import org.elasticsearch.threadpool.ThreadPool;
 import twitter4j.*;
 import twitter4j.conf.ConfigurationBuilder;
+import twitter4j.json.DataObjectFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -78,6 +80,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     private FilterQuery filterQuery;
 
     private String streamType;
+    
+    private boolean fullStatus = false;
 
 
     private volatile TwitterStream stream;
@@ -140,6 +144,9 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 if (proxy.containsKey("password")) {
                     proxyPassword = XContentMapValues.nodeStringValue(proxy.get("password"), null);
                 }
+            }
+            if (twitterSettings.containsKey("full")) {
+                fullStatus = Boolean.parseBoolean(twitterSettings.get("full").toString());
             }
             streamType = XContentMapValues.nodeStringValue(twitterSettings.get("type"), "sample");
             Map<String, Object> filterSettings = (Map<String, Object>) twitterSettings.get("filter");
@@ -256,6 +263,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         } else {
             cb.setUser(user).setPassword(password);
         }
+        if(fullStatus)
+            cb.setJSONStoreEnabled(true);
         if (proxyHost != null) cb.setHttpProxyHost(proxyHost);
         if (proxyPort != null) cb.setHttpProxyPort(Integer.parseInt(proxyPort));
         if (proxyUser != null) cb.setHttpProxyUser(proxyUser);
@@ -378,121 +387,135 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 logger.trace("status {} : {}", status.getUser().getName(), status.getText());
             }
             try {
-                XContentBuilder builder = XContentFactory.jsonBuilder().startObject();
-                builder.field("text", status.getText());
-                builder.field("created_at", status.getCreatedAt());
-                builder.field("source", status.getSource());
-                builder.field("truncated", status.isTruncated());
-
-                if (status.getUserMentionEntities() != null) {
-                    builder.startArray("mention");
-                    for (UserMentionEntity user : status.getUserMentionEntities()) {
-                        builder.startObject();
-                        builder.field("id", user.getId());
-                        builder.field("name", user.getName());
-                        builder.field("screen_name", user.getScreenName());
-                        builder.field("start", user.getStart());
-                        builder.field("end", user.getEnd());
-                        builder.endObject();
-                    }
-                    builder.endArray();
-                }
-
-                if (status.getRetweetCount() != -1) {
-                    builder.field("retweet_count", status.getRetweetCount());
-                }
-
-                if (status.getInReplyToStatusId() != -1) {
-                    builder.startObject("in_reply");
-                    builder.field("status", status.getInReplyToStatusId());
-                    if (status.getInReplyToUserId() != -1) {
-                        builder.field("user_id", status.getInReplyToUserId());
-                        builder.field("user_screen_name", status.getInReplyToScreenName());
-                    }
-                    builder.endObject();
-                }
-
-                if (status.getHashtagEntities() != null) {
-                    builder.startArray("hashtag");
-                    for (HashtagEntity hashtag : status.getHashtagEntities()) {
-                        builder.startObject();
-                        builder.field("text", hashtag.getText());
-                        builder.field("start", hashtag.getStart());
-                        builder.field("end", hashtag.getEnd());
-                        builder.endObject();
-                    }
-                    builder.endArray();
-                }
-                if (status.getContributors() != null) {
-                    builder.array("contributor", status.getContributors());
-                }
-                if (status.getGeoLocation() != null) {
-                    builder.startObject("location");
-                    builder.field("lat", status.getGeoLocation().getLatitude());
-                    builder.field("lon", status.getGeoLocation().getLongitude());
-                    builder.endObject();
-                }
-                if (status.getPlace() != null) {
-                    builder.startObject("place");
-                    builder.field("id", status.getPlace().getId());
-                    builder.field("name", status.getPlace().getName());
-                    builder.field("type", status.getPlace().getPlaceType());
-                    builder.field("full_name", status.getPlace().getFullName());
-                    builder.field("street_address", status.getPlace().getStreetAddress());
-                    builder.field("country", status.getPlace().getCountry());
-                    builder.field("country_code", status.getPlace().getCountryCode());
-                    builder.field("url", status.getPlace().getURL());
-                    builder.endObject();
-                }
-                if (status.getURLEntities() != null) {
-                    builder.startArray("link");
-                    for (URLEntity url : status.getURLEntities()) {
-                        if (url != null) {
-                            builder.startObject();
-                            if (url.getURL() != null) {
-                                builder.field("url", url.getURL().toExternalForm());
-                            }
-                            if (url.getDisplayURL() != null) {
-                                builder.field("display_url", url.getDisplayURL());
-                            }
-                            if (url.getExpandedURL() != null) {
-                                builder.field("expand_url", url.getExpandedURL());
-                            }
-                            builder.field("start", url.getStart());
-                            builder.field("end", url.getEnd());
-                            builder.endObject();
-                        }
-                    }
-                    builder.endArray();
-                }
-                if (status.getAnnotations() != null) {
-                    builder.startObject("annotation");
-                    List<Annotation> annotations = status.getAnnotations().getAnnotations();
-                    for (Annotation ann : annotations) {
-                        builder.startObject(ann.getType());
-                        Map<String, String> attributes = ann.getAttributes();
-                        for (Map.Entry<String, String> entry : attributes.entrySet()) {
-                            builder.field(entry.getKey(), entry.getValue());
-                        }
-                        builder.endObject();
-                    }
-                    builder.endObject();
-                }
-
-                builder.startObject("user");
-                builder.field("id", status.getUser().getId());
-                builder.field("name", status.getUser().getName());
-                builder.field("screen_name", status.getUser().getScreenName());
-                builder.field("location", status.getUser().getLocation());
-                builder.field("description", status.getUser().getDescription());
-                builder.endObject();
-
-                builder.endObject();
+                XContentBuilder builder = (fullStatus) ? buildFullDoc(status) : buildLightDoc(status);
                 currentRequest.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(builder));
                 processBulkIfNeeded();
             } catch (Exception e) {
                 logger.warn("failed to construct index request", e);
             }
+        }
+        
+        private XContentBuilder buildFullDoc(Status status) throws Exception {
+            return XContentFactory.jsonBuilder()
+                                  .copyCurrentStructure(JsonXContent
+                                                        .jsonXContent
+                                                        .createParser(DataObjectFactory.getRawJSON(status)));
+        }
+        
+        private XContentBuilder buildLightDoc(Status status) throws Exception
+        {
+            XContentBuilder builder = XContentFactory.jsonBuilder().startObject();
+            builder.field("text", status.getText());
+            builder.field("created_at", status.getCreatedAt());
+            builder.field("source", status.getSource());
+            builder.field("truncated", status.isTruncated());
+  
+            if (status.getUserMentionEntities() != null) {
+                builder.startArray("mention");
+                for (UserMentionEntity user : status.getUserMentionEntities()) {
+                    builder.startObject();
+                    builder.field("id", user.getId());
+                    builder.field("name", user.getName());
+                    builder.field("screen_name", user.getScreenName());
+                    builder.field("start", user.getStart());
+                    builder.field("end", user.getEnd());
+                    builder.endObject();
+                }
+                builder.endArray();
+            }
+  
+            if (status.getRetweetCount() != -1) {
+                builder.field("retweet_count", status.getRetweetCount());
+            }
+  
+            if (status.getInReplyToStatusId() != -1) {
+                builder.startObject("in_reply");
+                builder.field("status", status.getInReplyToStatusId());
+                if (status.getInReplyToUserId() != -1) {
+                    builder.field("user_id", status.getInReplyToUserId());
+                    builder.field("user_screen_name", status.getInReplyToScreenName());
+                }
+                builder.endObject();
+            }
+  
+            if (status.getHashtagEntities() != null) {
+                builder.startArray("hashtag");
+                for (HashtagEntity hashtag : status.getHashtagEntities()) {
+                    builder.startObject();
+                    builder.field("text", hashtag.getText());
+                    builder.field("start", hashtag.getStart());
+                    builder.field("end", hashtag.getEnd());
+                    builder.endObject();
+                }
+                builder.endArray();
+            }
+            if (status.getContributors() != null) {
+                builder.array("contributor", status.getContributors());
+            }
+            if (status.getGeoLocation() != null) {
+                builder.startObject("location");
+                builder.field("lat", status.getGeoLocation().getLatitude());
+                builder.field("lon", status.getGeoLocation().getLongitude());
+                builder.endObject();
+            }
+            if (status.getPlace() != null) {
+                builder.startObject("place");
+                builder.field("id", status.getPlace().getId());
+                builder.field("name", status.getPlace().getName());
+                builder.field("type", status.getPlace().getPlaceType());
+                builder.field("full_name", status.getPlace().getFullName());
+                builder.field("street_address", status.getPlace().getStreetAddress());
+                builder.field("country", status.getPlace().getCountry());
+                builder.field("country_code", status.getPlace().getCountryCode());
+                builder.field("url", status.getPlace().getURL());
+                builder.endObject();
+            }
+            if (status.getURLEntities() != null) {
+                builder.startArray("link");
+                for (URLEntity url : status.getURLEntities()) {
+                    if (url != null) {
+                        builder.startObject();
+                        if (url.getURL() != null) {
+                            builder.field("url", url.getURL().toExternalForm());
+                        }
+                        if (url.getDisplayURL() != null) {
+                            builder.field("display_url", url.getDisplayURL());
+                        }
+                        if (url.getExpandedURL() != null) {
+                            builder.field("expand_url", url.getExpandedURL());
+                        }
+                        builder.field("start", url.getStart());
+                        builder.field("end", url.getEnd());
+                        builder.endObject();
+                    }
+                }
+                builder.endArray();
+            }
+            if (status.getAnnotations() != null) {
+                builder.startObject("annotation");
+                List<Annotation> annotations = status.getAnnotations().getAnnotations();
+                for (Annotation ann : annotations) {
+                    builder.startObject(ann.getType());
+                    Map<String, String> attributes = ann.getAttributes();
+                    for (Map.Entry<String, String> entry : attributes.entrySet()) {
+                        builder.field(entry.getKey(), entry.getValue());
+                    }
+                    builder.endObject();
+                }
+                builder.endObject();
+            }
+  
+            builder.startObject("user");
+            builder.field("id", status.getUser().getId());
+            builder.field("name", status.getUser().getName());
+            builder.field("screen_name", status.getUser().getScreenName());
+            builder.field("location", status.getUser().getLocation());
+            builder.field("description", status.getUser().getDescription());
+            builder.endObject();
+  
+            builder.endObject();
+            
+            return builder;
         }
 
         @Override
