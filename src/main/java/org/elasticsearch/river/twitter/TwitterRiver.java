@@ -536,10 +536,12 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
                             @Override
                             public void onFailure(Throwable e) {
+                                onGoingBulks.decrementAndGet();
                                 logger.warn("failed to execute bulk");
                             }
                         });
                     } catch (Exception e) {
+                        onGoingBulks.decrementAndGet();
                         logger.warn("failed to process bulk", e);
                     }
                 }
