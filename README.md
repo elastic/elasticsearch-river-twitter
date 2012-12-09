@@ -31,14 +31,22 @@ Creating the twitter river can be done using:
 	    "index" : {
 	        "index" : "my_twitter_river",
 	        "type" : "status",
-	        "bulk_size" : 100
+	        "bulk" : {
+                "bulk_size" : "5mb",
+                "bulk_actions" : 100,
+                "concurrent_requests" : 10,
+                "flush_interval" : "5m"
+	        }
 	    }
 	}
 	'
 
 The above lists all the options controlling the creation of a twitter river. The user and password are required in order to connect to the twitter stream.
 
-Tweets will be indexed once a `bulk_size` of them have been accumulated.
+The river uses the bulk api to index documents. You can control how bulk operations are executed through the optional index.bulk section:
+* size of each bulk using either index.bulk.bulk_size (default 5mb) or index.bulk.number_of_actions (default 100)
+* index.bulk.flush_interval to force flushing any bulk actions when the time interval passes (default to not set), despite the size threshold hasn't been reached yet
+* number of allowed concurrent bulks through index.bulk.concurrent_requests (10 by default). No documents will be lost when the threshold is reached, the river will just wait till one of the current bulk operations is completed before executing a new one.
 
 Filtered Stream
 ===============
