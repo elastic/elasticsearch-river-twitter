@@ -23,22 +23,9 @@
         <url>http://github.com/elasticsearch/elasticsearch-river-twitter</url>
     </scm>
 
-    <parent>
-        <groupId>org.sonatype.oss</groupId>
-        <artifactId>oss-parent</artifactId>
-        <version>7</version>
-    </parent>
-
     <properties>
         <elasticsearch.version>0.19.0</elasticsearch.version>
     </properties>
-
-    <repositories>
-        <repository>
-            <id>sonatype</id>
-            <url>http://oss.sonatype.org/content/repositories/releases/</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>
