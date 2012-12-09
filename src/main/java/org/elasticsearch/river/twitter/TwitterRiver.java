@@ -20,14 +20,16 @@
 package org.elasticsearch.river.twitter;
 
 import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -43,7 +45,6 @@ import twitter4j.conf.ConfigurationBuilder;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  *
@@ -71,10 +72,6 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     private final String typeName;
 
-    private final int bulkSize;
-
-    private final int dropThreshold;
-
     private FilterQuery filterQuery;
 
     private String streamType;
@@ -82,9 +79,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     private volatile TwitterStream stream;
 
-    private final AtomicInteger onGoingBulks = new AtomicInteger();
-
-    private volatile BulkRequestBuilder currentRequest;
+    private volatile BulkProcessor bulkProcessor;
 
     private volatile boolean closed = false;
 
@@ -228,24 +223,52 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             stream = null;
             indexName = null;
             typeName = "status";
-            bulkSize = 100;
-            dropThreshold = 10;
             logger.warn("no user/password or oauth specified, disabling river...");
             return;
         }
 
+        ByteSizeValue bulkSize = new ByteSizeValue(5, ByteSizeUnit.MB);
+        int bulkActions = 100;
+        int concurrentRequests = 10;
+        TimeValue flushInterval = null;
         if (settings.settings().containsKey("index")) {
             Map<String, Object> indexSettings = (Map<String, Object>) settings.settings().get("index");
             indexName = XContentMapValues.nodeStringValue(indexSettings.get("index"), riverName.name());
             typeName = XContentMapValues.nodeStringValue(indexSettings.get("type"), "status");
-            this.bulkSize = XContentMapValues.nodeIntegerValue(indexSettings.get("bulk_size"), 100);
-            this.dropThreshold = XContentMapValues.nodeIntegerValue(indexSettings.get("drop_threshold"), 10);
+
+            Map<String, Object> bulkSettings = (Map<String, Object>) indexSettings.get("bulk");
+            if (bulkSettings != null) {
+                bulkSize = ByteSizeValue.parseBytesSizeValue(XContentMapValues.nodeStringValue(bulkSettings.get("bulk_size"), null), bulkSize);
+                bulkActions = XContentMapValues.nodeIntegerValue(bulkSettings.get("bulk_actions"), bulkActions);
+                String flushIntervalString = XContentMapValues.nodeStringValue(bulkSettings.get("flush_interval"), null);
+                if (flushIntervalString != null) {
+                    flushInterval = TimeValue.parseTimeValue(flushIntervalString, null);
+                }
+                concurrentRequests = XContentMapValues.nodeIntegerValue(bulkSettings.get("concurrent_requests"), concurrentRequests);
+            }
         } else {
             indexName = riverName.name();
             typeName = "status";
-            bulkSize = 100;
-            dropThreshold = 10;
         }
+
+        this.bulkProcessor = BulkProcessor.builder(client, new BulkProcessor.Listener() {
+            @Override
+            public void beforeBulk(long executionId, BulkRequest request) {
+                logger.info("Going to execute bulk [{}], {} actions", executionId, request.numberOfActions());
+            }
+
+            @Override
+            public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
+                logger.info("Bulk [{}] completed in {}", executionId, response.took());
+            }
+
+            @Override
+            public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
+                logger.warn("Error while executing bulk", failure);
+            }
+        }).setName(riverName.name()).setBulkActions(bulkActions).setBulkSize(bulkSize).setConcurrentRequests(concurrentRequests)
+                .setFlushInterval(flushInterval == null ? null : flushInterval).build();
+
 
         ConfigurationBuilder cb = new ConfigurationBuilder();
         if (oauthAccessToken != null && oauthConsumerKey != null && oauthConsumerSecret != null && oauthAccessTokenSecret != null) {
@@ -289,7 +312,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 return;
             }
         }
-        currentRequest = client.prepareBulk();
+
         if (streamType.equals("filter") || filterQuery != null) {
 
             stream.filter(filterQuery);
@@ -351,7 +374,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             }
             // TODO, we can update the status of the river to RECONNECT
             logger.warn("failed to connect after failure, throttling", e);
-            threadPool.schedule(TimeValue.timeValueSeconds(10), ThreadPool.Names.CACHED, new Runnable() {
+            threadPool.schedule(TimeValue.timeValueSeconds(10), ThreadPool.Names.GENERIC, new Runnable() {
                 @Override
                 public void run() {
                     reconnect();
@@ -368,6 +391,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             stream.cleanUp();
             stream.shutdown();
         }
+        bulkProcessor.close();
     }
 
     private class StatusHandler extends StatusAdapter {
@@ -488,8 +512,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 builder.endObject();
 
                 builder.endObject();
-                currentRequest.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(builder));
-                processBulkIfNeeded();
+                bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(builder));
             } catch (Exception e) {
                 logger.warn("failed to construct index request", e);
             }
@@ -498,8 +521,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         @Override
         public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
             if (statusDeletionNotice.getStatusId() != -1) {
-                currentRequest.add(Requests.deleteRequest(indexName).type(typeName).id(Long.toString(statusDeletionNotice.getStatusId())));
-                processBulkIfNeeded();
+                bulkProcessor.add(Requests.deleteRequest(indexName).type(typeName).id(Long.toString(statusDeletionNotice.getStatusId())));
             }
         }
 
@@ -511,42 +533,12 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         @Override
         public void onException(Exception ex) {
             logger.warn("stream failure, restarting stream...", ex);
-            threadPool.cached().execute(new Runnable() {
+            threadPool.generic().execute(new Runnable() {
                 @Override
                 public void run() {
                     reconnect();
                 }
             });
-        }
-
-        private void processBulkIfNeeded() {
-            if (currentRequest.numberOfActions() >= bulkSize) {
-                // execute the bulk operation
-                int currentOnGoingBulks = onGoingBulks.incrementAndGet();
-                if (currentOnGoingBulks > dropThreshold) {
-                    onGoingBulks.decrementAndGet();
-                    logger.warn("dropping bulk, [{}] crossed threshold [{}]", onGoingBulks, dropThreshold);
-                } else {
-                    try {
-                        currentRequest.execute(new ActionListener<BulkResponse>() {
-                            @Override
-                            public void onResponse(BulkResponse bulkResponse) {
-                                onGoingBulks.decrementAndGet();
-                            }
-
-                            @Override
-                            public void onFailure(Throwable e) {
-                                onGoingBulks.decrementAndGet();
-                                logger.warn("failed to execute bulk");
-                            }
-                        });
-                    } catch (Exception e) {
-                        onGoingBulks.decrementAndGet();
-                        logger.warn("failed to process bulk", e);
-                    }
-                }
-                currentRequest = client.prepareBulk();
-            }
         }
     }
 }
