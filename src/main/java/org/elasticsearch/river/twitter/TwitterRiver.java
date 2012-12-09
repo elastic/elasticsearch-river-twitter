@@ -351,7 +351,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             }
             // TODO, we can update the status of the river to RECONNECT
             logger.warn("failed to connect after failure, throttling", e);
-            threadPool.schedule(TimeValue.timeValueSeconds(10), ThreadPool.Names.CACHED, new Runnable() {
+            threadPool.schedule(TimeValue.timeValueSeconds(10), ThreadPool.Names.GENERIC, new Runnable() {
                 @Override
                 public void run() {
                     reconnect();
@@ -511,7 +511,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         @Override
         public void onException(Exception ex) {
             logger.warn("stream failure, restarting stream...", ex);
-            threadPool.cached().execute(new Runnable() {
+            threadPool.generic().execute(new Runnable() {
                 @Override
                 public void run() {
                     reconnect();
