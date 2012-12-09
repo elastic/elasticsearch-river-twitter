@@ -3,12 +3,14 @@ Twitter River Plugin for ElasticSearch
 
 The Twitter River plugin allows index twitter stream.
 
-In order to install the plugin, simply run: `bin/plugin -install elasticsearch/elasticsearch-river-twitter/1.2.0`.
+In order to install the plugin, simply run: `bin/plugin -install elasticsearch/elasticsearch-river-twitter/1.3.0`.
 
     -------------------------------------
     | Twitter Plugin | ElasticSearch    |
     -------------------------------------
     | master         | 0.20 -> master   |
+    -------------------------------------
+    | 1.3.0          | 0.20 -> master   |
     -------------------------------------
     | 1.2.0          | 0.19             |
     -------------------------------------
@@ -43,7 +45,7 @@ Creating the twitter river can be done using:
 
 The above lists all the options controlling the creation of a twitter river. The user and password are required in order to connect to the twitter stream.
 
-The river uses the bulk api to index documents. You can control how bulk operations are executed through the optional index.bulk section:
+The river uses the bulk api to index documents. You can control how bulk operations are executed through the optional index.bulk section (since 1.3.0):
 * size of each bulk using either index.bulk.bulk_size (default 5mb) or index.bulk.number_of_actions (default 100)
 * index.bulk.flush_interval to force flushing any bulk actions when the time interval passes (default to not set), despite the size threshold hasn't been reached yet
 * number of allowed concurrent bulks through index.bulk.concurrent_requests (10 by default). No documents will be lost when the threshold is reached, the river will just wait till one of the current bulk operations is completed before executing a new one.
