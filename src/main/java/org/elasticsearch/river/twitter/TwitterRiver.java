@@ -450,7 +450,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         if (url != null) {
                             builder.startObject();
                             if (url.getURL() != null) {
-                                builder.field("url", url.getURL().toExternalForm());
+                                builder.field("url", url.getURL());
                             }
                             if (url.getDisplayURL() != null) {
                                 builder.field("display_url", url.getDisplayURL());
@@ -464,19 +464,6 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         }
                     }
                     builder.endArray();
-                }
-                if (status.getAnnotations() != null) {
-                    builder.startObject("annotation");
-                    List<Annotation> annotations = status.getAnnotations().getAnnotations();
-                    for (Annotation ann : annotations) {
-                        builder.startObject(ann.getType());
-                        Map<String, String> attributes = ann.getAttributes();
-                        for (Map.Entry<String, String> entry : attributes.entrySet()) {
-                            builder.field(entry.getKey(), entry.getValue());
-                        }
-                        builder.endObject();
-                    }
-                    builder.endObject();
                 }
 
                 builder.startObject("user");

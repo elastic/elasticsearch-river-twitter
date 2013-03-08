@@ -30,7 +30,7 @@
     </parent>
 
     <properties>
-        <elasticsearch.version>0.21.0.Beta1-SNAPSHOT</elasticsearch.version>
+        <elasticsearch.version>0.20.5</elasticsearch.version>
     </properties>
 
     <repositories>
@@ -51,7 +51,7 @@
         <dependency>
             <groupId>org.twitter4j</groupId>
             <artifactId>twitter4j-stream</artifactId>
-            <version>2.2.5</version>
+            <version>3.0.3</version>
             <scope>compile</scope>
         </dependency>
 
