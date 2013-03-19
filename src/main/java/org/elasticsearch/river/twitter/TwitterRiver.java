@@ -402,6 +402,19 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                     builder.field("retweet_count", status.getRetweetCount());
                 }
 
+                if (status.isRetweet() && status.getRetweetedStatus() != null) { 
+                    builder.startObject("retweet");
+                    builder.field("id", status.getRetweetedStatus().getId());
+                    if (status.getRetweetedStatus().getUser() != null) {
+                        builder.field("user_id", status.getRetweetedStatus().getUser().getId());
+                        builder.field("user_screen_name", status.getRetweetedStatus().getUser().getScreenName());
+                        if (status.getRetweetedStatus().getRetweetCount() != -1) {
+                            builder.field("retweet_count", status.getRetweetedStatus().getRetweetCount());
+                        }
+                    }
+                    builder.endObject();
+                }
+
                 if (status.getInReplyToStatusId() != -1) {
                     builder.startObject("in_reply");
                     builder.field("status", status.getInReplyToStatusId());
@@ -472,6 +485,9 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 builder.field("screen_name", status.getUser().getScreenName());
                 builder.field("location", status.getUser().getLocation());
                 builder.field("description", status.getUser().getDescription());
+                builder.field("profile_image_url", status.getUser().getProfileImageURL());
+                builder.field("profile_image_url_https", status.getUser().getProfileImageURLHttps());
+
                 builder.endObject();
 
                 builder.endObject();
