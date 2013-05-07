@@ -31,6 +31,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.river.AbstractRiverComponent;
@@ -40,6 +41,8 @@ import org.elasticsearch.river.RiverSettings;
 import org.elasticsearch.threadpool.ThreadPool;
 import twitter4j.*;
 import twitter4j.conf.ConfigurationBuilder;
+import twitter4j.json.DataObjectFactory;
+
 
 import java.util.List;
 import java.util.Map;
@@ -88,15 +91,21 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     private volatile boolean closed = false;
 
+    private final boolean full = true;
+
+
     @SuppressWarnings({"unchecked"})
     @Inject
     public TwitterRiver(RiverName riverName, RiverSettings settings, Client client, ThreadPool threadPool) {
         super(riverName, settings);
         this.client = client;
         this.threadPool = threadPool;
+        initialize(riverName.getName(), settings.settings());
+    }
 
-        if (settings.settings().containsKey("twitter")) {
-            Map<String, Object> twitterSettings = (Map<String, Object>) settings.settings().get("twitter");
+    private void initialize(String riverName, Map<String, Object> settings) {
+        if (settings.containsKey("twitter")) {
+            Map<String, Object> twitterSettings = (Map<String, Object>) settings.get("twitter");
             user = XContentMapValues.nodeStringValue(twitterSettings.get("user"), null);
             password = XContentMapValues.nodeStringValue(twitterSettings.get("password"), null);
             if (twitterSettings.containsKey("oauth")) {
@@ -234,20 +243,24 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             return;
         }
 
-        if (settings.settings().containsKey("index")) {
-            Map<String, Object> indexSettings = (Map<String, Object>) settings.settings().get("index");
-            indexName = XContentMapValues.nodeStringValue(indexSettings.get("index"), riverName.name());
+        if (settings.containsKey("index")) {
+            Map<String, Object> indexSettings = (Map<String, Object>) settings.get("index");
+            indexName = XContentMapValues.nodeStringValue(indexSettings.get("index"), riverName);
             typeName = XContentMapValues.nodeStringValue(indexSettings.get("type"), "status");
             this.bulkSize = XContentMapValues.nodeIntegerValue(indexSettings.get("bulk_size"), 100);
             this.dropThreshold = XContentMapValues.nodeIntegerValue(indexSettings.get("drop_threshold"), 10);
         } else {
-            indexName = riverName.name();
+            indexName = riverName;
             typeName = "status";
             bulkSize = 100;
             dropThreshold = 10;
         }
 
         ConfigurationBuilder cb = new ConfigurationBuilder();
+
+        // Needed because we need to access the full tweet data later on
+        cb.setJSONStoreEnabled(true);
+
         if (oauthAccessToken != null && oauthConsumerKey != null && oauthConsumerSecret != null && oauthAccessTokenSecret != null) {
             cb.setOAuthConsumerKey(oauthConsumerKey)
                     .setOAuthConsumerSecret(oauthConsumerSecret)
@@ -291,9 +304,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         }
         currentRequest = client.prepareBulk();
         if (streamType.equals("filter") || filterQuery != null) {
-
             stream.filter(filterQuery);
-
         } else if (streamType.equals("firehose")) {
             stream.firehose(0);
         } else {
@@ -338,7 +349,6 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
             if (streamType.equals("filter") || filterQuery != null) {
                 stream.filter(filterQuery);
-
             } else if (streamType.equals("firehose")) {
                 stream.firehose(0);
             } else {
@@ -487,8 +497,25 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 builder.field("description", status.getUser().getDescription());
                 builder.field("profile_image_url", status.getUser().getProfileImageURL());
                 builder.field("profile_image_url_https", status.getUser().getProfileImageURLHttps());
-
                 builder.endObject();
+
+                // Workaround: the language of the tweet is not yet accessible through the Twitter4j API, but it is present in
+                // the result we get from the Twitter streaming API. By accessing the full JSON object we can find the 
+                // language of the tweet and use it.
+                Map rawTweet = JsonXContent.jsonXContent.createParser(DataObjectFactory.getRawJSON(status)).map();
+                if (rawTweet.get("lang") != null) {
+                    builder.field("lang", rawTweet.get("lang"));
+                }
+
+                // filter_level is one of 3 values: low, medium, high. It allows to filter out spam (low) or highlight top tweets (high)
+                if (rawTweet.get("filter_level") != null) {
+                    builder.field("filter_level", rawTweet.get("filter_level"));
+                }
+
+                // Index the entire JSON result if the 'full' option is set.
+                if (full) {
+                    builder.field("full", rawTweet);
+                }
 
                 builder.endObject();
                 currentRequest.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(builder));
