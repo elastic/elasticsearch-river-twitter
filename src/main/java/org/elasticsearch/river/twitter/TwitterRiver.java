@@ -96,14 +96,13 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     @SuppressWarnings({"unchecked"})
     @Inject
-    public TwitterRiver(RiverName riverName, RiverSettings settings, Client client, ThreadPool threadPool) {
-        super(riverName, settings);
+    public TwitterRiver(RiverName riverName, RiverSettings riverSettings, Client client, ThreadPool threadPool) {
+        super(riverName, riverSettings);
         this.client = client;
         this.threadPool = threadPool;
-        initialize(riverName.getName(), settings.settings());
-    }
 
-    private void initialize(String riverName, Map<String, Object> settings) {
+        Map<String, Object> settings = riverSettings.settings();
+
         if (settings.containsKey("twitter")) {
             Map<String, Object> twitterSettings = (Map<String, Object>) settings.get("twitter");
             user = XContentMapValues.nodeStringValue(twitterSettings.get("user"), null);
@@ -245,12 +244,12 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
         if (settings.containsKey("index")) {
             Map<String, Object> indexSettings = (Map<String, Object>) settings.get("index");
-            indexName = XContentMapValues.nodeStringValue(indexSettings.get("index"), riverName);
+            indexName = XContentMapValues.nodeStringValue(indexSettings.get("index"), riverName.getName());
             typeName = XContentMapValues.nodeStringValue(indexSettings.get("type"), "status");
             this.bulkSize = XContentMapValues.nodeIntegerValue(indexSettings.get("bulk_size"), 100);
             this.dropThreshold = XContentMapValues.nodeIntegerValue(indexSettings.get("drop_threshold"), 10);
         } else {
-            indexName = riverName;
+            indexName = riverName.getName();
             typeName = "status";
             bulkSize = 100;
             dropThreshold = 10;
@@ -319,12 +318,12 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         try {
             stream.cleanUp();
         } catch (Exception e) {
-            logger.debug("failed to cleanup after failure", e);
+            logger.warn("failed to cleanup after failure", e);
         }
         try {
             stream.shutdown();
         } catch (Exception e) {
-            logger.debug("failed to shutdown after failure", e);
+            logger.warn("failed to shutdown after failure", e);
         }
         if (closed) {
             return;
@@ -332,6 +331,10 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
         try {
             ConfigurationBuilder cb = new ConfigurationBuilder();
+
+            // Needed because we need to access the full tweet data later on
+            cb.setJSONStoreEnabled(true);
+
             if (oauthAccessToken != null && oauthConsumerKey != null && oauthConsumerSecret != null && oauthAccessTokenSecret != null) {
                 cb.setOAuthConsumerKey(oauthConsumerKey)
                         .setOAuthConsumerSecret(oauthConsumerSecret)
@@ -381,6 +384,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     }
 
     private class StatusHandler extends StatusAdapter {
+        private boolean hasException = false;
 
         @Override
         public void onStatus(Status status) {
@@ -541,12 +545,17 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         @Override
         public void onException(Exception ex) {
             logger.warn("stream failure, restarting stream...", ex);
-            threadPool.generic().execute(new Runnable() {
-                @Override
-                public void run() {
-                    reconnect();
-                }
-            });
+            if (hasException) {
+                logger.warn("onException handler called multiple times!! Let's not reconnect again...");
+            } else {
+                hasException = true;
+                threadPool.generic().execute(new Runnable() {
+                    @Override
+                    public void run() {
+                      reconnect();
+                    }
+                });
+            }
         }
 
         private void processBulkIfNeeded() {
