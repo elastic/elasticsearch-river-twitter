@@ -5,17 +5,17 @@ The Twitter River plugin allows index twitter stream.
 
 In order to install the plugin, simply run: `bin/plugin -install elasticsearch/elasticsearch-river-twitter/1.2.0`.
 
-    -------------------------------------
-    | Twitter Plugin | ElasticSearch    |
-    -------------------------------------
-    | master         | 0.20 -> master   |
-    -------------------------------------
-    | 1.2.0          | 0.19             |
-    -------------------------------------
-    | 1.1.0          | 0.19             |
-    -------------------------------------
-    | 1.0.0          | 0.18             |
-    -------------------------------------
+    ---------------------------------------------------
+    | Twitter Plugin          | ElasticSearch         |
+    ---------------------------------------------------
+    | 1.3.0-SNAPSHOT (master) | 0.20-0.90 -> master   |
+    ---------------------------------------------------
+    | 1.2.0                   | 0.19                  |
+    ---------------------------------------------------
+    | 1.1.0                   | 0.19                  |
+    ---------------------------------------------------
+    | 1.0.0                   | 0.18                  |
+    ---------------------------------------------------
 
 The twitter river indexes the public [twitter stream](http://dev.twitter.com/pages/streaming_api), aka the hose, and makes it searchable.
 
