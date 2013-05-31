@@ -26,7 +26,7 @@ Creating the twitter river can be done using:
 	    "type" : "twitter",
 	    "twitter" : {
 	        "user" : "twitter_user",
-	        "password" : "twitter_passowrd"
+	        "password" : "twitter_password"
 	    },
 	    "index" : {
 	        "index" : "my_twitter_river",
