@@ -56,7 +56,7 @@ public abstract class TwitterRiverAbstractTest {
                 } else if (command.equals("-p") || command.equals("--password")) {
                     password = args[++c];
                 } else if (command.equals("-d") || command.equals("--duration")) {
-                    duration = Long.getLong(args[++c]);
+                    duration = Long.parseLong(args[++c]);
                 } else if (command.equals("-t") || command.equals("--track")) {
                     track = args[++c];
                 } else if (command.equals("-h") || command.equals("--help")) {
