@@ -259,7 +259,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         if (proxyHost != null) cb.setHttpProxyHost(proxyHost);
         if (proxyPort != null) cb.setHttpProxyPort(Integer.parseInt(proxyPort));
         if (proxyUser != null) cb.setHttpProxyUser(proxyUser);
-        if (proxyPassword != null) cb.setHttpProxyHost(proxyPassword);
+        if (proxyPassword != null) cb.setHttpProxyPassword(proxyPassword);
         stream = new TwitterStreamFactory(cb.build()).getInstance();
         stream.addListener(new StatusHandler());
     }
@@ -332,7 +332,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             if (proxyHost != null) cb.setHttpProxyHost(proxyHost);
             if (proxyPort != null) cb.setHttpProxyPort(Integer.parseInt(proxyPort));
             if (proxyUser != null) cb.setHttpProxyUser(proxyUser);
-            if (proxyPassword != null) cb.setHttpProxyHost(proxyPassword);
+            if (proxyPassword != null) cb.setHttpProxyPassword(proxyPassword);
             stream = new TwitterStreamFactory(cb.build()).getInstance();
             stream.addListener(new StatusHandler());
 
