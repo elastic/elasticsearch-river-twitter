@@ -150,7 +150,19 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             }
             streamType = XContentMapValues.nodeStringValue(twitterSettings.get("type"), "sample");
             Map<String, Object> filterSettings = (Map<String, Object>) twitterSettings.get("filter");
+
+            if (streamType.equals("filter") && filterSettings == null) {
+                stream = null;
+                indexName = null;
+                typeName = "status";
+                bulkSize = 100;
+                dropThreshold = 10;
+                logger.warn("no filter defined for type filter. Disabling river...");
+                return;
+            }
+
             if (filterSettings != null) {
+                streamType = "filter";
                 filterQuery = new FilterQuery();
                 filterQuery.count(XContentMapValues.nodeIntegerValue(filterSettings.get("count"), 0));
                 Object tracks = filterSettings.get("tracks");
@@ -265,6 +277,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
      * @return
      */
     private TwitterStream buildTwitterStream() {
+        logger.debug("creating TwitterStreamFactory");
         ConfigurationBuilder cb = new ConfigurationBuilder();
         if (oauthAccessToken != null && oauthConsumerKey != null && oauthConsumerSecret != null && oauthAccessTokenSecret != null) {
             cb.setOAuthConsumerKey(oauthConsumerKey)
@@ -290,10 +303,9 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
      * Start twitter stream
      */
     private void startTwitterStream() {
+        logger.info("starting {} twitter stream", streamType);
         if (streamType.equals("filter") || filterQuery != null) {
-
             stream.filter(filterQuery);
-
         } else if (streamType.equals("firehose")) {
             stream.firehose(0);
         } else {
@@ -306,7 +318,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         if (stream == null) {
             return;
         }
-        logger.info("starting twitter stream");
+
         try {
             // We push ES mapping only if raw is false
             if (!raw) {
@@ -335,6 +347,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     private void reconnect() {
         if (closed) {
+            logger.debug("can not reconnect twitter on a closed river");
             return;
         }
         try {
