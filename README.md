@@ -41,6 +41,32 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
 
 The above lists all the options controlling the creation of a twitter river. The user and password are required in order to connect to the twitter stream.
 
+By default, the twitter river will read a small random of all public statuses using [sample API](https://dev.twitter.com/docs/api/1.1/get/statuses/sample).
+
+But, you can define statuses type you want to read:
+
+* [sample](https://dev.twitter.com/docs/api/1.1/get/statuses/sample): the default one
+* [filter](https://dev.twitter.com/docs/api/1.1/post/statuses/filter): track for text, users and locations.
+See [Filtered Stream](#filtered-stream)
+* [firehose](https://dev.twitter.com/docs/api/1.1/get/statuses/firehose): all public statuses (restricted access)
+
+For example:
+
+```sh
+curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
+{
+    "type" : "twitter",
+    "twitter" : {
+        "user" : "twitter_user",
+        "password" : "twitter_password",
+        "type" : "firehose"
+    }
+}
+'
+```
+
+Note that if you define a filter (see [next section](#filtered-stream)), type will be automatically set to `filter`.
+
 Tweets will be indexed once a `bulk_size` of them have been accumulated.
 
 Filtered Stream
