@@ -255,6 +255,14 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             dropThreshold = 10;
         }
 
+        stream = buildTwitterStream();
+    }
+
+    /**
+     * Twitter Stream Builder
+     * @return
+     */
+    private TwitterStream buildTwitterStream() {
         ConfigurationBuilder cb = new ConfigurationBuilder();
         if (oauthAccessToken != null && oauthConsumerKey != null && oauthConsumerSecret != null && oauthAccessTokenSecret != null) {
             cb.setOAuthConsumerKey(oauthConsumerKey)
@@ -269,8 +277,26 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         if (proxyUser != null) cb.setHttpProxyUser(proxyUser);
         if (proxyPassword != null) cb.setHttpProxyPassword(proxyPassword);
         if (raw) cb.setJSONStoreEnabled(true);
-        stream = new TwitterStreamFactory(cb.build()).getInstance();
+
+        TwitterStream stream = new TwitterStreamFactory(cb.build()).getInstance();
         stream.addListener(new StatusHandler());
+
+        return stream;
+    }
+
+    /**
+     * Start twitter stream
+     */
+    private void startTwitterStream() {
+        if (streamType.equals("filter") || filterQuery != null) {
+
+            stream.filter(filterQuery);
+
+        } else if (streamType.equals("firehose")) {
+            stream.firehose(0);
+        } else {
+            stream.sample();
+        }
     }
 
     @Override
@@ -302,15 +328,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             }
         }
         currentRequest = client.prepareBulk();
-        if (streamType.equals("filter") || filterQuery != null) {
-
-            stream.filter(filterQuery);
-
-        } else if (streamType.equals("firehose")) {
-            stream.firehose(0);
-        } else {
-            stream.sample();
-        }
+        startTwitterStream();
     }
 
     private void reconnect() {
@@ -332,32 +350,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         }
 
         try {
-            ConfigurationBuilder cb = new ConfigurationBuilder();
-            if (oauthAccessToken != null && oauthConsumerKey != null && oauthConsumerSecret != null && oauthAccessTokenSecret != null) {
-                cb.setOAuthConsumerKey(oauthConsumerKey)
-                        .setOAuthConsumerSecret(oauthConsumerSecret)
-                        .setOAuthAccessToken(oauthAccessToken)
-                        .setOAuthAccessTokenSecret(oauthAccessTokenSecret);
-            } else {
-                cb.setUser(user).setPassword(password);
-            }
-            if (proxyHost != null) cb.setHttpProxyHost(proxyHost);
-            if (proxyPort != null) cb.setHttpProxyPort(Integer.parseInt(proxyPort));
-            if (proxyUser != null) cb.setHttpProxyUser(proxyUser);
-            if (proxyPassword != null) cb.setHttpProxyPassword(proxyPassword);
-            if (raw) cb.setJSONStoreEnabled(true);
-
-            stream = new TwitterStreamFactory(cb.build()).getInstance();
-            stream.addListener(new StatusHandler());
-
-            if (streamType.equals("filter") || filterQuery != null) {
-                stream.filter(filterQuery);
-
-            } else if (streamType.equals("firehose")) {
-                stream.firehose(0);
-            } else {
-                stream.sample();
-            }
+            stream = buildTwitterStream();
+            startTwitterStream();
         } catch (Exception e) {
             if (closed) {
                 close();
@@ -378,9 +372,50 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     public void close() {
         this.closed = true;
         logger.info("closing twitter stream river");
+
+        // #27: Flush bulk request when stopping the river (https://github.com/elasticsearch/elasticsearch-river-twitter/issues/27)
+        if (currentRequest != null && currentRequest.numberOfActions() > 0) {
+            if (logger.isDebugEnabled()) logger.debug("flushing {} remaining action(s) in bulk", currentRequest.numberOfActions());
+            processBulkIfNeeded(true);
+        }
+
         if (stream != null) {
             stream.cleanUp();
             stream.shutdown();
+        }
+    }
+
+    /**
+     * Process bulk request
+     * @param force force to flush the bulk request
+     */
+    private void processBulkIfNeeded(boolean force) {
+        if (force || currentRequest.numberOfActions() >= bulkSize) {
+            // execute the bulk operation
+            int currentOnGoingBulks = onGoingBulks.incrementAndGet();
+            if (currentOnGoingBulks > dropThreshold) {
+                onGoingBulks.decrementAndGet();
+                logger.warn("dropping bulk, [{}] crossed threshold [{}]", onGoingBulks, dropThreshold);
+            } else {
+                try {
+                    currentRequest.execute(new ActionListener<BulkResponse>() {
+                        @Override
+                        public void onResponse(BulkResponse bulkResponse) {
+                            onGoingBulks.decrementAndGet();
+                        }
+
+                        @Override
+                        public void onFailure(Throwable e) {
+                            onGoingBulks.decrementAndGet();
+                            logger.warn("failed to execute bulk");
+                        }
+                    });
+                } catch (Exception e) {
+                    onGoingBulks.decrementAndGet();
+                    logger.warn("failed to process bulk", e);
+                }
+            }
+            currentRequest = client.prepareBulk();
         }
     }
 
@@ -514,7 +549,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                     currentRequest.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(builder));
                 }
 
-                processBulkIfNeeded();
+                processBulkIfNeeded(false);
             } catch (Exception e) {
                 logger.warn("failed to construct index request", e);
             }
@@ -524,7 +559,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
             if (statusDeletionNotice.getStatusId() != -1) {
                 currentRequest.add(Requests.deleteRequest(indexName).type(typeName).id(Long.toString(statusDeletionNotice.getStatusId())));
-                processBulkIfNeeded();
+                processBulkIfNeeded(false);
             }
         }
 
@@ -542,36 +577,6 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                     reconnect();
                 }
             });
-        }
-
-        private void processBulkIfNeeded() {
-            if (currentRequest.numberOfActions() >= bulkSize) {
-                // execute the bulk operation
-                int currentOnGoingBulks = onGoingBulks.incrementAndGet();
-                if (currentOnGoingBulks > dropThreshold) {
-                    onGoingBulks.decrementAndGet();
-                    logger.warn("dropping bulk, [{}] crossed threshold [{}]", onGoingBulks, dropThreshold);
-                } else {
-                    try {
-                        currentRequest.execute(new ActionListener<BulkResponse>() {
-                            @Override
-                            public void onResponse(BulkResponse bulkResponse) {
-                                onGoingBulks.decrementAndGet();
-                            }
-
-                            @Override
-                            public void onFailure(Throwable e) {
-                                onGoingBulks.decrementAndGet();
-                                logger.warn("failed to execute bulk");
-                            }
-                        });
-                    } catch (Exception e) {
-                        onGoingBulks.decrementAndGet();
-                        logger.warn("failed to process bulk", e);
-                    }
-                }
-                currentRequest = client.prepareBulk();
-            }
         }
     }
 }

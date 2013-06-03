@@ -44,13 +44,10 @@ public class TwitterRiverTest extends TwitterRiverAbstractTest {
                     .field("user", username)
                     .field("password", password)
                     .startObject("filter")
-                    .field("tracks", track)
+                        .field("tracks", track)
                     .endObject()
                 .endObject()
-                .startObject("index")
-                    .field("bulk_size", 5)
-                .endObject()
-                .endObject();
+            .endObject();
         return xb;
     }
 }

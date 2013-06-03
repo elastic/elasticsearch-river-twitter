@@ -24,8 +24,13 @@
 		<level value="info" />
 	</logger>
 
+    <!-- Set this logger to trace if you want to display tweets -->
+    <logger name="org.elasticsearch.river.twitter">
+        <level value="debug" />
+    </logger>
+
 	<root>
-		<priority value="debug" />
+		<priority value="info" />
 		<appender-ref ref="console" />
 	</root>
 

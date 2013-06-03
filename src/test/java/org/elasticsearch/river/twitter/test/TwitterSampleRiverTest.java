@@ -28,10 +28,10 @@ import java.io.IOException;
  * To run this test you have to provide your twitter login and twitter password.
  * You can also define test duration in seconds (default to 10)
  */
-public class TwitterRawRiverTest extends TwitterRiverAbstractTest {
+public class TwitterSampleRiverTest extends TwitterRiverAbstractTest {
 
     public static void main(String[] args) throws InterruptedException, IOException {
-        TwitterRawRiverTest instance = new TwitterRawRiverTest();
+        TwitterSampleRiverTest instance = new TwitterSampleRiverTest();
         instance.launcher(args);
     }
 
@@ -43,10 +43,7 @@ public class TwitterRawRiverTest extends TwitterRiverAbstractTest {
                 .startObject("twitter")
                     .field("user", username)
                     .field("password", password)
-                    .field("raw", true)
-                    .startObject("filter")
-                        .field("tracks", track)
-                    .endObject()
+                    .field("type", "sample")
                 .endObject()
             .endObject();
         return xb;
