@@ -141,6 +141,23 @@ curl -XPUT localhost:9200/my_twitter_river/status/_mapping -d '
 '
 ```
 
+Ignoring Retweets
+=================
+
+If you don't want to index retweets (aka RT), just set `ignore_retweet` to `true` (default to `false`):
+
+```sh
+curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
+{
+    "type" : "twitter",
+    "twitter" : {
+        "user" : "twitter_user",
+        "password" : "twitter_password",
+        "ignore_retweet" : true
+    }
+}
+'
+```
 
 
 Remove the river
