@@ -1,7 +1,8 @@
 Twitter River Plugin for ElasticSearch
 ==================================
 
-The Twitter River plugin allows index twitter stream.
+The Twitter River plugin allows index twitter stream using
+[Elasticsearch rivers feature](http://www.elasticsearch.org/guide/reference/river/).
 
 In order to install the plugin, simply run: `bin/plugin -install elasticsearch/elasticsearch-river-twitter/1.2.0`.
 
@@ -21,20 +22,22 @@ The twitter river indexes the public [twitter stream](http://dev.twitter.com/pag
 
 Creating the twitter river can be done using:
 
-	curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
-	{
-	    "type" : "twitter",
-	    "twitter" : {
-	        "user" : "twitter_user",
-	        "password" : "twitter_password"
-	    },
-	    "index" : {
-	        "index" : "my_twitter_river",
-	        "type" : "status",
-	        "bulk_size" : 100
-	    }
-	}
-	'
+```sh
+curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
+{
+    "type" : "twitter",
+    "twitter" : {
+        "user" : "twitter_user",
+        "password" : "twitter_password"
+    },
+    "index" : {
+        "index" : "my_twitter_river",
+        "type" : "status",
+        "bulk_size" : 100
+    }
+}
+'
+```
 
 The above lists all the options controlling the creation of a twitter river. The user and password are required in order to connect to the twitter stream.
 
@@ -45,33 +48,47 @@ Filtered Stream
 
 Filtered stream can also be supported (as per the twitter stream API). Filter stream can be configured to support `tracks`, `follow`, and `locations`. The configuration is the same as the twitter API (a single comma separated string value, or using json arrays). Here is an example:
 
-	{
-	    "type" : "twitter",
-	    "twitter" : {
-	        "user" : "me",
-	        "password" : "123456",
-	        "filter" : {
-	            "tracks" : "test,something,please",
-	            "follow" : "111,222,333",
-	            "locations" : "-122.75,36.8,-121.75,37.8,-74,40,-73,41"
-	        }
-	    }
-	}
+```javascript
+{
+    "type" : "twitter",
+    "twitter" : {
+        "user" : "me",
+        "password" : "123456",
+        "filter" : {
+            "tracks" : "test,something,please",
+            "follow" : "111,222,333",
+            "locations" : "-122.75,36.8,-121.75,37.8,-74,40,-73,41"
+        }
+    }
+}
+```
 
 Here is an array based configuration example:
 
-	{
-	    "type" : "twitter",
-	    "twitter" : {
-	        "user" : "me",
-	        "password" : "123456",
-	        "filter" : {
-	            "tracks" : ["test", "something"],
-	            "follow" : [111, 222, 333],
-	            "locations" : [ [-122.75,36.8], [-121.75,37.8], [-74,40], [-73,41]]
-	        }
-	    }
-	}
+```javascript
+{
+    "type" : "twitter",
+    "twitter" : {
+        "user" : "me",
+        "password" : "123456",
+        "filter" : {
+            "tracks" : ["test", "something"],
+            "follow" : [111, 222, 333],
+            "locations" : [ [-122.75,36.8], [-121.75,37.8], [-74,40], [-73,41]]
+        }
+    }
+}
+```
+
+Remove the river
+================
+
+If you need to stop the Twitter river, you have to remove it:
+
+```sh
+curl -XDELETE http://localhost:9200/_river/my_twitter_river/
+```
+
 
 License
 -------

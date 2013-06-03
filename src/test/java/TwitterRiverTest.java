@@ -126,6 +126,10 @@ public class TwitterRiverTest {
         node.client().prepareIndex("_river", "twitter", "_meta").setSource(xb).execute().actionGet();
 
         Thread.sleep(duration * 1000);
+
+        // We remove the river as well. Not mandatory here as the JVM will stop
+        // but it's an example on how to remove a running river (and call close() method).
+        node.client().admin().indices().prepareDeleteMapping("_river").setType("twitter").execute().actionGet();
     }
 
     private static void displayHelp(String message) {
