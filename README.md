@@ -80,6 +80,43 @@ Here is an array based configuration example:
 }
 ```
 
+Indexing RAW Twitter stream
+===========================
+
+By default, elasticsearch twitter river will convert tweets to an equivalent representation
+in elasticsearch. If you want to index RAW twitter JSON content without any transformation,
+you can set `raw` to `true`:
+
+```sh
+curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
+{
+    "type" : "twitter",
+    "twitter" : {
+        "user" : "twitter_user",
+        "password" : "twitter_password",
+        "raw" : true
+    }
+}
+'
+```
+
+Note that you should think of creating a mapping first for your tweets. See Twitter documentation on
+[raw Tweet format](https://dev.twitter.com/docs/platform-objects/tweets):
+
+```sh
+curl -XPUT localhost:9200/my_twitter_river/status/_mapping -d '
+{
+    "status" : {
+        "properties" : {
+            "text" : {"type" : "string", "analyzer" : "standard"}
+        }
+    }
+}
+'
+```
+
+
+
 Remove the river
 ================
 

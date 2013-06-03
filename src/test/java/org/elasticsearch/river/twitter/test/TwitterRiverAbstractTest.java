@@ -17,11 +17,12 @@
  * under the License.
  */
 
+package org.elasticsearch.river.twitter.test;
+
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.common.io.FileSystemUtils;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.indices.IndexMissingException;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
@@ -33,17 +34,19 @@ import java.io.IOException;
  * To run this test you have to provide your twitter login and twitter password.
  * You can also define test duration in seconds (default to 10)
  */
-public class TwitterRiverTest {
+public abstract class TwitterRiverAbstractTest {
 
-    public static void main(String[] args) throws InterruptedException, IOException {
+    protected abstract XContentBuilder riverSettings() throws IOException;
+    protected String username = null;
+    protected String password = null;
+    protected String track = "obama";
+    protected long duration = 10;
+
+    public void launcher(String[] args) throws InterruptedException, IOException {
         // Checking args
         if (args.length < 2) {
 
         }
-        String username = null;
-        String password = null;
-        String track = "obama";
-        long duration = 10;
 
         try {
             for (int c = 0; c < args.length; c++) {
@@ -110,20 +113,7 @@ public class TwitterRiverTest {
             // Index does not exist... Fine
         }
 
-
-        XContentBuilder xb = XContentFactory.jsonBuilder()
-            .startObject()
-                .field("type", "twitter")
-                .startObject("twitter")
-                    .field("user", username)
-                    .field("password", password)
-                    .startObject("filter")
-                        .field("tracks", track)
-                    .endObject()
-                .endObject()
-            .endObject();
-
-        node.client().prepareIndex("_river", "twitter", "_meta").setSource(xb).execute().actionGet();
+        node.client().prepareIndex("_river", "twitter", "_meta").setSource(riverSettings()).execute().actionGet();
 
         Thread.sleep(duration * 1000);
 
