@@ -20,7 +20,6 @@
 package org.elasticsearch.river.twitter.test;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
 
 import java.io.IOException;
 
@@ -36,17 +35,10 @@ public class TwitterIgnoreRTRiverTest extends TwitterRiverAbstractTest {
     }
 
     @Override
-    protected XContentBuilder riverSettings() throws IOException {
-        XContentBuilder xb = XContentFactory.jsonBuilder()
-            .startObject()
-                .field("type", "twitter")
-                .startObject("twitter")
-                    .field("user", username)
-                    .field("password", password)
-                    .field("type", "sample")
-                    .field("ignore_retweet", true)
-                .endObject()
-            .endObject();
+    protected XContentBuilder addSpecificRiverSettings(XContentBuilder xb) throws IOException {
+        xb
+            .field("type", "sample")
+            .field("ignore_retweet", true);
         return xb;
     }
 }

@@ -20,7 +20,28 @@ In order to install the plugin, simply run: `bin/plugin -install elasticsearch/e
     | 1.0.0                   | 0.18                  |
     ---------------------------------------------------
 
-The twitter river indexes the public [twitter stream](http://dev.twitter.com/pages/streaming_api), aka the hose, and makes it searchable.
+The twitter river indexes the public [twitter stream](http://dev.twitter.com/pages/streaming_api), aka the hose,
+and makes it searchable.
+
+**Breaking news**: [https://twitter.com/twitterapi/status/344574437674328064](Twitter does not support anymore HTTP
+user/password authentication).
+You now must use [OAuth API](https://dev.twitter.com/docs/auth/obtaining-access-tokens).
+
+Prerequisites
+-------------
+
+You need to get an OAuth token in order to use Twitter river.
+Please follow [Twitter documentation](https://dev.twitter.com/docs/auth/tokens-devtwittercom), basically:
+
+* Login to: https://dev.twitter.com/apps/
+* Create a new Twitter application (let's say elasticsearch): https://dev.twitter.com/apps/new
+You don't need a callback URL.
+* When done, click on `Create my access token`.
+* Open `OAuth tool` tab and note `Consumer key`, `Consumer secret`, `Access token` and `Access token secret`.
+
+
+Create river
+------------
 
 Creating the twitter river can be done using:
 
@@ -29,8 +50,12 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
 {
     "type" : "twitter",
     "twitter" : {
-        "user" : "twitter_user",
-        "password" : "twitter_password"
+        "oauth" : {
+            "consumer_key" : "*** YOUR Consumer key HERE ***",
+            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
+            "access_token" : "*** YOUR Access token HERE ***",
+            "access_token_secret" : "*** YOUR Access token secret HERE ***"
+        }
     },
     "index" : {
         "index" : "my_twitter_river",
@@ -41,9 +66,10 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
 '
 ```
 
-The above lists all the options controlling the creation of a twitter river. The user and password are required in order to connect to the twitter stream.
+The above lists all the options controlling the creation of a twitter river.
 
-By default, the twitter river will read a small random of all public statuses using [sample API](https://dev.twitter.com/docs/api/1.1/get/statuses/sample).
+By default, the twitter river will read a small random of all public statuses using
+[sample API](https://dev.twitter.com/docs/api/1.1/get/statuses/sample).
 
 But, you can define statuses type you want to read:
 
@@ -59,8 +85,12 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
 {
     "type" : "twitter",
     "twitter" : {
-        "user" : "twitter_user",
-        "password" : "twitter_password",
+        "oauth" : {
+            "consumer_key" : "*** YOUR Consumer key HERE ***",
+            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
+            "access_token" : "*** YOUR Access token HERE ***",
+            "access_token_secret" : "*** YOUR Access token secret HERE ***"
+        },
         "type" : "firehose"
     }
 }
@@ -74,14 +104,20 @@ Tweets will be indexed once a `bulk_size` of them have been accumulated.
 Filtered Stream
 ===============
 
-Filtered stream can also be supported (as per the twitter stream API). Filter stream can be configured to support `tracks`, `follow`, and `locations`. The configuration is the same as the twitter API (a single comma separated string value, or using json arrays). Here is an example:
+Filtered stream can also be supported (as per the twitter stream API). Filter stream can be configured to
+support `tracks`, `follow`, and `locations`. The configuration is the same as the twitter API (a single comma
+separated string value, or using json arrays). Here is an example:
 
 ```javascript
 {
     "type" : "twitter",
     "twitter" : {
-        "user" : "me",
-        "password" : "123456",
+        "oauth" : {
+            "consumer_key" : "*** YOUR Consumer key HERE ***",
+            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
+            "access_token" : "*** YOUR Access token HERE ***",
+            "access_token_secret" : "*** YOUR Access token secret HERE ***"
+        },
         "filter" : {
             "tracks" : "test,something,please",
             "follow" : "111,222,333",
@@ -97,8 +133,12 @@ Here is an array based configuration example:
 {
     "type" : "twitter",
     "twitter" : {
-        "user" : "me",
-        "password" : "123456",
+        "oauth" : {
+            "consumer_key" : "*** YOUR Consumer key HERE ***",
+            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
+            "access_token" : "*** YOUR Access token HERE ***",
+            "access_token_secret" : "*** YOUR Access token secret HERE ***"
+        },
         "filter" : {
             "tracks" : ["test", "something"],
             "follow" : [111, 222, 333],
@@ -120,8 +160,12 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
 {
     "type" : "twitter",
     "twitter" : {
-        "user" : "twitter_user",
-        "password" : "twitter_password",
+        "oauth" : {
+            "consumer_key" : "*** YOUR Consumer key HERE ***",
+            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
+            "access_token" : "*** YOUR Access token HERE ***",
+            "access_token_secret" : "*** YOUR Access token secret HERE ***"
+        },
         "raw" : true
     }
 }
@@ -153,8 +197,12 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
 {
     "type" : "twitter",
     "twitter" : {
-        "user" : "twitter_user",
-        "password" : "twitter_password",
+        "oauth" : {
+            "consumer_key" : "*** YOUR Consumer key HERE ***",
+            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
+            "access_token" : "*** YOUR Access token HERE ***",
+            "access_token_secret" : "*** YOUR Access token secret HERE ***"
+        },
         "ignore_retweet" : true
     }
 }

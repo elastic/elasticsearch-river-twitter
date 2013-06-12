@@ -55,9 +55,6 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     private final Client client;
 
-    private String user;
-    private String password;
-
     private String oauthConsumerKey = null;
     private String oauthConsumerSecret = null;
     private String oauthAccessToken = null;
@@ -101,8 +98,12 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
         if (settings.settings().containsKey("twitter")) {
             Map<String, Object> twitterSettings = (Map<String, Object>) settings.settings().get("twitter");
-            user = XContentMapValues.nodeStringValue(twitterSettings.get("user"), null);
-            password = XContentMapValues.nodeStringValue(twitterSettings.get("password"), null);
+
+            // Check removed properties
+            if (twitterSettings.get("user") != null || twitterSettings.get("password") != null) {
+                logger.warn("user and password are not supported anymore. See https://github.com/elasticsearch/elasticsearch-river-twitter/issues/28");
+            }
+
             raw = XContentMapValues.nodeBooleanValue(twitterSettings.get("raw"), false);
             ignoreRetweet = XContentMapValues.nodeBooleanValue(twitterSettings.get("ignore_retweet"), false);
 
@@ -241,18 +242,18 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             }
         }
 
-        logger.info("creating twitter stream river for [{}]", user);
+        logger.info("creating twitter stream river");
         if (raw && logger.isDebugEnabled()) {
             logger.debug("will index twitter raw content...");
         }
 
-        if (user == null && password == null && oauthAccessToken == null && oauthConsumerKey == null && oauthConsumerSecret == null && oauthAccessTokenSecret == null) {
+        if (oauthAccessToken == null && oauthConsumerKey == null && oauthConsumerSecret == null && oauthAccessTokenSecret == null) {
             stream = null;
             indexName = null;
             typeName = "status";
             bulkSize = 100;
             dropThreshold = 10;
-            logger.warn("no user/password or oauth specified, disabling river...");
+            logger.warn("no oauth specified, disabling river...");
             return;
         }
 
@@ -279,19 +280,20 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     private TwitterStream buildTwitterStream() {
         logger.debug("creating TwitterStreamFactory");
         ConfigurationBuilder cb = new ConfigurationBuilder();
-        if (oauthAccessToken != null && oauthConsumerKey != null && oauthConsumerSecret != null && oauthAccessTokenSecret != null) {
-            cb.setOAuthConsumerKey(oauthConsumerKey)
-                    .setOAuthConsumerSecret(oauthConsumerSecret)
-                    .setOAuthAccessToken(oauthAccessToken)
-                    .setOAuthAccessTokenSecret(oauthAccessTokenSecret);
-        } else {
-            cb.setUser(user).setPassword(password);
-        }
+
+        cb.setOAuthConsumerKey(oauthConsumerKey)
+            .setOAuthConsumerSecret(oauthConsumerSecret)
+            .setOAuthAccessToken(oauthAccessToken)
+            .setOAuthAccessTokenSecret(oauthAccessTokenSecret);
+
         if (proxyHost != null) cb.setHttpProxyHost(proxyHost);
         if (proxyPort != null) cb.setHttpProxyPort(Integer.parseInt(proxyPort));
         if (proxyUser != null) cb.setHttpProxyUser(proxyUser);
         if (proxyPassword != null) cb.setHttpProxyPassword(proxyPassword);
         if (raw) cb.setJSONStoreEnabled(true);
+
+        // We force SSL usage
+        cb.setUseSSL(true);
 
         TwitterStream stream = new TwitterStreamFactory(cb.build()).getInstance();
         stream.addListener(new StatusHandler());

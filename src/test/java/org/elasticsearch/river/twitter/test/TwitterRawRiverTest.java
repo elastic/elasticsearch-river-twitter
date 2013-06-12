@@ -20,7 +20,6 @@
 package org.elasticsearch.river.twitter.test;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
 
 import java.io.IOException;
 
@@ -36,18 +35,11 @@ public class TwitterRawRiverTest extends TwitterRiverAbstractTest {
     }
 
     @Override
-    protected XContentBuilder riverSettings() throws IOException {
-        XContentBuilder xb = XContentFactory.jsonBuilder()
-            .startObject()
-                .field("type", "twitter")
-                .startObject("twitter")
-                    .field("user", username)
-                    .field("password", password)
-                    .field("raw", true)
-                    .startObject("filter")
-                        .field("tracks", track)
-                    .endObject()
-                .endObject()
+    protected XContentBuilder addSpecificRiverSettings(XContentBuilder xb) throws IOException {
+        xb
+            .field("raw", true)
+            .startObject("filter")
+                  .field("tracks", track)
             .endObject();
         return xb;
     }

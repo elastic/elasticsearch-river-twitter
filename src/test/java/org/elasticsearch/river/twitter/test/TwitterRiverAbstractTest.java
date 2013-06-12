@@ -23,6 +23,7 @@ import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.common.io.FileSystemUtils;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.indices.IndexMissingException;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
@@ -31,16 +32,38 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * To run this test you have to provide your twitter login and twitter password.
+ * To run this test you have to provide your twitter oauth credentials.
  * You can also define test duration in seconds (default to 10)
  */
 public abstract class TwitterRiverAbstractTest {
 
-    protected abstract XContentBuilder riverSettings() throws IOException;
-    protected String username = null;
-    protected String password = null;
+    protected abstract XContentBuilder addSpecificRiverSettings(XContentBuilder xb) throws IOException;
+
+    protected String oauth_consumer_key = null;
+    protected String oauth_consumer_secret = null;
+    protected String oauth_access_token = null;
+    protected String oauth_access_token_secret = null;
     protected String track = "obama";
     protected long duration = 10;
+
+    protected XContentBuilder riverSettings() throws IOException {
+        XContentBuilder xb = XContentFactory.jsonBuilder()
+            .startObject()
+                .field("type", "twitter")
+                .startObject("twitter")
+                    .startObject("oauth")
+                        .field("consumer_key", oauth_consumer_key)
+                        .field("consumer_secret", oauth_consumer_secret)
+                        .field("access_token", oauth_access_token)
+                        .field("access_token_secret", oauth_access_token_secret)
+                    .endObject();
+
+        // We inject specific test settings here
+        xb = addSpecificRiverSettings(xb);
+
+        xb.endObject().endObject();
+        return xb;
+    }
 
     public void launcher(String[] args) throws InterruptedException, IOException {
         // Checking args
@@ -51,10 +74,14 @@ public abstract class TwitterRiverAbstractTest {
         try {
             for (int c = 0; c < args.length; c++) {
                 String command = args[c];
-                if (command.equals("-u") || command.equals("--user")) {
-                    username = args[++c];
-                } else if (command.equals("-p") || command.equals("--password")) {
-                    password = args[++c];
+                if (command.equals("-k") || command.equals("--consumer_key")) {
+                    oauth_consumer_key = args[++c];
+                } else if (command.equals("-s") || command.equals("--consumer_secret")) {
+                    oauth_consumer_secret = args[++c];
+                } else if (command.equals("-t") || command.equals("--access_token")) {
+                    oauth_access_token = args[++c];
+                } else if (command.equals("-a") || command.equals("--access_token_secret")) {
+                    oauth_access_token_secret = args[++c];
                 } else if (command.equals("-d") || command.equals("--duration")) {
                     duration = Long.parseLong(args[++c]);
                 } else if (command.equals("-t") || command.equals("--track")) {
@@ -73,12 +100,9 @@ public abstract class TwitterRiverAbstractTest {
             System.exit(1);
         }
 
-        if (username == null) {
-            displayHelp("Username need to be set.");
-            System.exit(1);
-        }
-        if (password == null) {
-            displayHelp("Password need to be set.");
+        if (oauth_consumer_key == null || oauth_consumer_secret == null
+                || oauth_access_token == null || oauth_access_token_secret == null) {
+            displayHelp("OAuth credentials need to be set.");
             System.exit(1);
         }
 
@@ -124,11 +148,13 @@ public abstract class TwitterRiverAbstractTest {
 
     private static void displayHelp(String message) {
         System.out.println("Usage:");
-        System.out.println("    -u, --user     [username]       : Set your twitter user account");
-        System.out.println("    -p, --password [password]       : Set your twitter password");
-        System.out.println("    -d, --duration [duration]       : Set test duration in seconds (default to 10)");
-        System.out.println("    -t, --track    [term]           : Term you want to track (default to obama)");
-        System.out.println("    -h, --help                      : Prints this help message");
+        System.out.println("    -k, --consumer_key        [key]          : Set your twitter user account");
+        System.out.println("    -s, --consumer_secret     [secret]       : Set your twitter password");
+        System.out.println("    -t, --access_token        [token]        : Set your twitter password");
+        System.out.println("    -a, --access_token_secret [token secret] : Set your twitter password");
+        System.out.println("    -d, --duration            [duration]     : Set test duration in seconds (default to 10)");
+        System.out.println("    -t, --track               [term]         : Term you want to track (default to obama)");
+        System.out.println("    -h, --help                               : Prints this help message");
         System.out.println();
 
         if (message != null) {
