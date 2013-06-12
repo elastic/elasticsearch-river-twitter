@@ -4,12 +4,14 @@ Twitter River Plugin for ElasticSearch
 The Twitter River plugin allows index twitter stream using
 [Elasticsearch rivers feature](http://www.elasticsearch.org/guide/reference/river/).
 
-In order to install the plugin, simply run: `bin/plugin -install elasticsearch/elasticsearch-river-twitter/1.3.0`.
+In order to install the plugin, simply run: `bin/plugin -install elasticsearch/elasticsearch-river-twitter/1.4.0`.
 
     ---------------------------------------------------
     | Twitter Plugin          | ElasticSearch         |
     ---------------------------------------------------
-    | 1.4.0-SNAPSHOT (master) | 0.20-0.90 -> master   |
+    | 1.5.0-SNAPSHOT (master) | 0.20-0.90 -> master   |
+    ---------------------------------------------------
+    | 1.4.0                   | 0.20-0.90 -> master   |
     ---------------------------------------------------
     | 1.3.0                   | 0.20-0.90 -> master   |
     ---------------------------------------------------
