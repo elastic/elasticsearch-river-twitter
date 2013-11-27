@@ -210,21 +210,21 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                             if (loc instanceof List) {
                                 List lLoc = (List) loc;
                                 if (lLoc.get(0) instanceof Number) {
-                                    lat = ((Number) lLoc.get(0)).doubleValue();
+                                    lon = ((Number) lLoc.get(0)).doubleValue();
                                 } else {
-                                    lat = Double.parseDouble(lLoc.get(0).toString());
+                                    lon = Double.parseDouble(lLoc.get(0).toString());
                                 }
                                 if (lLoc.get(1) instanceof Number) {
-                                    lon = ((Number) lLoc.get(1)).doubleValue();
+                                    lat = ((Number) lLoc.get(1)).doubleValue();
                                 } else {
-                                    lon = Double.parseDouble(lLoc.get(1).toString());
+                                    lat = Double.parseDouble(lLoc.get(1).toString());
                                 }
                             } else {
                                 String[] sLoc = Strings.commaDelimitedListToStringArray(loc.toString());
-                                lat = Double.parseDouble(sLoc[0]);
-                                lon = Double.parseDouble(sLoc[1]);
+                                lon = Double.parseDouble(sLoc[0]);
+                                lat = Double.parseDouble(sLoc[1]);
                             }
-                            dLocations[i] = new double[]{lat, lon};
+                            dLocations[i] = new double[]{lon, lat};
                         }
                         filterQuery.locations(dLocations);
                     } else {
@@ -232,9 +232,9 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         double[][] dLocations = new double[sLocations.length / 2][];
                         int dCounter = 0;
                         for (int i = 0; i < sLocations.length; i++) {
-                            double lat = Double.parseDouble(sLocations[i]);
-                            double lon = Double.parseDouble(sLocations[++i]);
-                            dLocations[dCounter++] = new double[]{lat, lon};
+                            double lon = Double.parseDouble(sLocations[i]);
+                            double lat = Double.parseDouble(sLocations[++i]);
+                            dLocations[dCounter++] = new double[]{lon, lat};
                         }
                         filterQuery.locations(dLocations);
                     }

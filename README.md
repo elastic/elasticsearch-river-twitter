@@ -129,6 +129,8 @@ separated string value, or using json arrays). Here is an example:
 }
 ```
 
+Note that locations use geoJSON order (longitude, latitude).
+
 Here is an array based configuration example:
 
 ```javascript
