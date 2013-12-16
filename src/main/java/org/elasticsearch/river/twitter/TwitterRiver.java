@@ -166,6 +166,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 filterQuery = new FilterQuery();
                 filterQuery.count(XContentMapValues.nodeIntegerValue(filterSettings.get("count"), 0));
                 Object tracks = filterSettings.get("tracks");
+                boolean filterSet = false;
                 if (tracks != null) {
                     if (tracks instanceof List) {
                         List<String> lTracks = (List<String>) tracks;
@@ -173,6 +174,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                     } else {
                         filterQuery.track(Strings.commaDelimitedListToStringArray(tracks.toString()));
                     }
+                    filterSet = true;
                 }
                 Object follow = filterSettings.get("follow");
                 if (follow != null) {
@@ -196,6 +198,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         }
                         filterQuery.follow(followIds);
                     }
+                    filterSet = true;
                 }
                 Object locations = filterSettings.get("locations");
                 if (locations != null) {
@@ -236,6 +239,26 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                             dLocations[dCounter++] = new double[]{lon, lat};
                         }
                         filterQuery.locations(dLocations);
+                    }
+                    filterSet = true;
+                }
+                Object language = filterSettings.get("language");
+                if (language != null) {
+                    if (filterSet) {
+                        if (language instanceof List) {
+                            List<String> lLanguage = (List<String>) language;
+                            filterQuery.language(lLanguage.toArray(new String[lLanguage.size()]));
+                        } else {
+                            filterQuery.language(Strings.commaDelimitedListToStringArray(language.toString()));
+                        }
+                    } else {
+                        indexName = null;
+                        typeName = "status";
+                        bulkSize = 100;
+                        this.maxConcurrentBulk = 1;
+                        this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
+                        logger.warn("can not set language filter without tracks, follow or locations. Disabling river.");
+                        return;
                     }
                 }
             }
@@ -329,6 +352,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             if (!raw) {
                 String mapping = XContentFactory.jsonBuilder().startObject().startObject(typeName).startObject("properties")
                         .startObject("location").field("type", "geo_point").endObject()
+                        .startObject("language").field("type", "string").field("index", "not_analyzed").endObject()
                         .startObject("user").startObject("properties").startObject("screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
                         .startObject("mention").startObject("properties").startObject("screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
                         .startObject("in_reply").startObject("properties").startObject("user_screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
@@ -455,6 +479,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         builder.field("created_at", status.getCreatedAt());
                         builder.field("source", status.getSource());
                         builder.field("truncated", status.isTruncated());
+                        builder.field("language", status.getIsoLanguageCode());
 
                         if (status.getUserMentionEntities() != null) {
                             builder.startArray("mention");
