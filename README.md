@@ -1,4 +1,4 @@
-Twitter River Plugin for ElasticSearch
+Twitter River Plugin for Elasticsearch
 ==================================
 
 The Twitter River plugin allows index twitter stream using
@@ -6,21 +6,15 @@ The Twitter River plugin allows index twitter stream using
 
 In order to install the plugin, simply run: `bin/plugin -install elasticsearch/elasticsearch-river-twitter/1.4.0`.
 
-    ---------------------------------------------------
-    | Twitter Plugin          | ElasticSearch         |
-    ---------------------------------------------------
-    | 1.5.0-SNAPSHOT (master) | 0.20-0.90 -> master   |
-    ---------------------------------------------------
-    | 1.4.0                   | 0.20-0.90 -> master   |
-    ---------------------------------------------------
-    | 1.3.0                   | 0.20-0.90 -> master   |
-    ---------------------------------------------------
-    | 1.2.0                   | 0.19                  |
-    ---------------------------------------------------
-    | 1.1.0                   | 0.19                  |
-    ---------------------------------------------------
-    | 1.0.0                   | 0.18                  |
-    ---------------------------------------------------
+
+|    Twitter River Plugin    |    elasticsearch    | Release date |
+|----------------------------|---------------------|:------------:|
+| 1.5.0-SNAPSHOT (master)    | 0.20 -> 0.90        |              |
+| 1.4.0                      | 0.20 -> 0.90        |  2013-06-12  |
+| 1.3.0                      | 0.20 -> 0.90        |  2013-06-03  |
+| 1.2.0                      | 0.19                |  2012-12-05  |
+| 1.1.0                      | 0.19                |  2012-02-07  |
+| 1.0.0                      | 0.18                |  2011-12-05  |
 
 The twitter river indexes the public [twitter stream](http://dev.twitter.com/pages/streaming_api), aka the hose,
 and makes it searchable.
@@ -229,7 +223,7 @@ License
 
     This software is licensed under the Apache 2 license, quoted below.
 
-    Copyright 2009-2013 Shay Banon and ElasticSearch <http://www.elasticsearch.org>
+    Copyright 2009-2014 Elasticsearch <http://www.elasticsearch.org>
 
     Licensed under the Apache License, Version 2.0 (the "License"); you may not
     use this file except in compliance with the License. You may obtain a copy of
