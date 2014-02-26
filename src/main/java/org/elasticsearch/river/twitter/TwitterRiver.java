@@ -185,7 +185,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                             if (o instanceof Number) {
                                 followIds[i] = ((Number) o).intValue();
                             } else {
-                                followIds[i] = Integer.parseInt(o.toString());
+                                followIds[i] = Long.parseLong(o.toString());
                             }
                         }
                         filterQuery.follow(followIds);
@@ -193,7 +193,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         String[] ids = Strings.commaDelimitedListToStringArray(follow.toString());
                         long[] followIds = new long[ids.length];
                         for (int i = 0; i < ids.length; i++) {
-                            followIds[i] = Integer.parseInt(ids[i]);
+                            followIds[i] = Long.parseLong(ids[i]);
                         }
                         filterQuery.follow(followIds);
                     }
