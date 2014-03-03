@@ -59,7 +59,8 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
     "index" : {
         "index" : "my_twitter_river",
         "type" : "status",
-        "bulk_size" : 100
+        "bulk_size" : 100,
+        "flush_interval" : "5s"
     }
 }
 '
@@ -98,7 +99,8 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
 
 Note that if you define a filter (see [next section](#filtered-stream)), type will be automatically set to `filter`.
 
-Tweets will be indexed once a `bulk_size` of them have been accumulated.
+Tweets will be indexed once a `bulk_size` of them have been accumulated (default to `100`)
+or every `flush_interval` period (default to `5s`).
 
 Filtered Stream
 ===============

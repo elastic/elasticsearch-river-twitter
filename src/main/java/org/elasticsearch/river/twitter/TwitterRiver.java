@@ -20,8 +20,9 @@
 package org.elasticsearch.river.twitter;
 
 import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
@@ -44,7 +45,6 @@ import twitter4j.json.DataObjectFactory;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  *
@@ -73,8 +73,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     private final String typeName;
 
     private final int bulkSize;
-
-    private final int dropThreshold;
+    private final int maxConcurrentBulk;
+    private final TimeValue bulkFlushInterval;
 
     private FilterQuery filterQuery;
 
@@ -83,9 +83,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     private volatile TwitterStream stream;
 
-    private final AtomicInteger onGoingBulks = new AtomicInteger();
-
-    private volatile BulkRequestBuilder currentRequest;
+    private volatile BulkProcessor bulkProcessor;
 
     private volatile boolean closed = false;
 
@@ -157,7 +155,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 indexName = null;
                 typeName = "status";
                 bulkSize = 100;
-                dropThreshold = 10;
+                this.maxConcurrentBulk = 1;
+                this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
                 logger.warn("no filter defined for type filter. Disabling river...");
                 return;
             }
@@ -252,7 +251,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             indexName = null;
             typeName = "status";
             bulkSize = 100;
-            dropThreshold = 10;
+            this.maxConcurrentBulk = 1;
+            this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
             logger.warn("no oauth specified, disabling river...");
             return;
         }
@@ -262,12 +262,15 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             indexName = XContentMapValues.nodeStringValue(indexSettings.get("index"), riverName.name());
             typeName = XContentMapValues.nodeStringValue(indexSettings.get("type"), "status");
             this.bulkSize = XContentMapValues.nodeIntegerValue(indexSettings.get("bulk_size"), 100);
-            this.dropThreshold = XContentMapValues.nodeIntegerValue(indexSettings.get("drop_threshold"), 10);
+            this.bulkFlushInterval = TimeValue.parseTimeValue(XContentMapValues.nodeStringValue(
+                    indexSettings.get("flush_interval"), "5s"), TimeValue.timeValueSeconds(5));
+            this.maxConcurrentBulk = XContentMapValues.nodeIntegerValue(indexSettings.get("max_concurrent_bulk"), 1);
         } else {
             indexName = riverName.name();
             typeName = "status";
             bulkSize = 100;
-            dropThreshold = 10;
+            this.maxConcurrentBulk = 1;
+            this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
         }
 
         stream = buildTwitterStream();
@@ -343,7 +346,40 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 return;
             }
         }
-        currentRequest = client.prepareBulk();
+
+        // Creating bulk processor
+        this.bulkProcessor = BulkProcessor.builder(client, new BulkProcessor.Listener() {
+            @Override
+            public void beforeBulk(long executionId, BulkRequest request) {
+                logger.debug("Going to execute new bulk composed of {} actions", request.numberOfActions());
+            }
+
+            @Override
+            public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
+                logger.debug("Executed bulk composed of {} actions", request.numberOfActions());
+                if (response.hasFailures()) {
+                    logger.warn("There was failures while executing bulk", response.buildFailureMessage());
+                    if (logger.isDebugEnabled()) {
+                        for (BulkItemResponse item : response.getItems()) {
+                            if (item.isFailed()) {
+                                logger.debug("Error for {}/{}/{} for {} operation: {}", item.getIndex(),
+                                        item.getType(), item.getId(), item.getOpType(), item.getFailureMessage());
+                            }
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
+                logger.warn("Error executing bulk", failure);
+            }
+        })
+                .setBulkActions(bulkSize)
+                .setConcurrentRequests(maxConcurrentBulk)
+                .setFlushInterval(bulkFlushInterval)
+                .build();
+
         startTwitterStream();
     }
 
@@ -390,49 +426,11 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         this.closed = true;
         logger.info("closing twitter stream river");
 
-        // #27: Flush bulk request when stopping the river (https://github.com/elasticsearch/elasticsearch-river-twitter/issues/27)
-        if (currentRequest != null && currentRequest.numberOfActions() > 0) {
-            if (logger.isDebugEnabled()) logger.debug("flushing {} remaining action(s) in bulk", currentRequest.numberOfActions());
-            processBulkIfNeeded(true);
-        }
+        bulkProcessor.close();
 
         if (stream != null) {
             stream.cleanUp();
             stream.shutdown();
-        }
-    }
-
-    /**
-     * Process bulk request
-     * @param force force to flush the bulk request
-     */
-    private void processBulkIfNeeded(boolean force) {
-        if (force || currentRequest.numberOfActions() >= bulkSize) {
-            // execute the bulk operation
-            int currentOnGoingBulks = onGoingBulks.incrementAndGet();
-            if (currentOnGoingBulks > dropThreshold) {
-                onGoingBulks.decrementAndGet();
-                logger.warn("dropping bulk, [{}] crossed threshold [{}]", onGoingBulks, dropThreshold);
-            } else {
-                try {
-                    currentRequest.execute(new ActionListener<BulkResponse>() {
-                        @Override
-                        public void onResponse(BulkResponse bulkResponse) {
-                            onGoingBulks.decrementAndGet();
-                        }
-
-                        @Override
-                        public void onFailure(Throwable e) {
-                            onGoingBulks.decrementAndGet();
-                            logger.warn("failed to execute bulk");
-                        }
-                    });
-                } catch (Exception e) {
-                    onGoingBulks.decrementAndGet();
-                    logger.warn("failed to process bulk", e);
-                }
-            }
-            currentRequest = client.prepareBulk();
         }
     }
 
@@ -450,7 +448,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                     // If we want to index tweets as is, we don't need to convert it to JSon doc
                     if (raw) {
                         String rawJSON = DataObjectFactory.getRawJSON(status);
-                        currentRequest.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(rawJSON));
+                        bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(rawJSON));
                     } else {
                         XContentBuilder builder = XContentFactory.jsonBuilder().startObject();
                         builder.field("text", status.getText());
@@ -565,10 +563,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         builder.endObject();
 
                         builder.endObject();
-                        currentRequest.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(builder));
+                        bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(builder));
                     }
-
-                    processBulkIfNeeded(false);
                 } else if (logger.isTraceEnabled()) {
                     logger.trace("ignoring status cause retweet {} : {}", status.getUser().getName(), status.getText());
                 }
@@ -581,8 +577,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         @Override
         public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
             if (statusDeletionNotice.getStatusId() != -1) {
-                currentRequest.add(Requests.deleteRequest(indexName).type(typeName).id(Long.toString(statusDeletionNotice.getStatusId())));
-                processBulkIfNeeded(false);
+                bulkProcessor.add(Requests.deleteRequest(indexName).type(typeName).id(Long.toString(statusDeletionNotice.getStatusId())));
             }
         }
 
