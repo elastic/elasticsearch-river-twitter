@@ -174,6 +174,15 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         filterQuery.track(Strings.commaDelimitedListToStringArray(tracks.toString()));
                     }
                 }
+                Object languages = filterSettings.get("languages");
+                if (languages != null) {
+                    if (languages instanceof List) {
+                        List<String> lLanguages = (List<String>) languages;
+                        filterQuery.language(lLanguages.toArray(new String[lLanguages.size()]));
+                    } else {
+                        filterQuery.language(Strings.commaDelimitedListToStringArray(languages.toString()));
+                    }
+                }
                 Object follow = filterSettings.get("follow");
                 if (follow != null) {
                     if (follow instanceof List) {
