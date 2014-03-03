@@ -18,10 +18,6 @@ In order to install the plugin, simply run: `bin/plugin -install elasticsearch/e
 The twitter river indexes the public [twitter stream](http://dev.twitter.com/pages/streaming_api), aka the hose,
 and makes it searchable.
 
-**Breaking news**: [Twitter does not support anymore HTTP user/password
-authentication](https://twitter.com/twitterapi/status/344574437674328064).
-You now must use [OAuth API](https://dev.twitter.com/docs/auth/obtaining-access-tokens).
-
 Prerequisites
 -------------
 
