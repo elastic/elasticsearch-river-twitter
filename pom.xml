@@ -2,13 +2,14 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <name>elasticsearch-river-twitter</name>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.elasticsearch</groupId>
     <artifactId>elasticsearch-river-twitter</artifactId>
     <version>2.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
-    <description>Twitter River for ElasticSearch</description>
+    <name>Elasticsearch Twitter River plugin</name>
+    <description>The Twitter River plugin allows index twitter stream using elasticsearch rivers feature</description>
+    <url>https://github.com/elasticsearch/elasticsearch-river-twitter/</url>
     <inceptionYear>2009</inceptionYear>
     <licenses>
         <license>
