@@ -12,6 +12,7 @@ In order to install the plugin, simply run: `bin/plugin -install elasticsearch/e
 
 |    Twitter River Plugin    |    elasticsearch    | Release date |
 |----------------------------|---------------------|:------------:|
+| 1.6.0-SNAPSHOT             | 0.20 -> 0.90        |  XXXX-XX-XX  |
 | 1.5.0                      | 0.20 -> 0.90        |  2014-03-08  |
 | 1.4.0                      | 0.20 -> 0.90        |  2013-06-12  |
 | 1.3.0                      | 0.20 -> 0.90        |  2013-06-03  |
