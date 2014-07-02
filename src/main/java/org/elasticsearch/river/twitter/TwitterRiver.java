@@ -76,6 +76,9 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     private final int maxConcurrentBulk;
     private final TimeValue bulkFlushInterval;
 
+    private final int numShards;
+    private final int numReplicas;
+
     private FilterQuery filterQuery;
 
     private String streamType;
@@ -157,6 +160,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 bulkSize = 100;
                 this.maxConcurrentBulk = 1;
                 this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
+                numShards = 5;
+                numReplicas = 1;
                 logger.warn("no filter defined for type filter. Disabling river...");
                 return;
             }
@@ -257,6 +262,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         bulkSize = 100;
                         this.maxConcurrentBulk = 1;
                         this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
+                        numShards = 5;
+                        numReplicas = 1;
                         logger.warn("can not set language filter without tracks, follow or locations. Disabling river.");
                         return;
                     }
@@ -276,6 +283,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             bulkSize = 100;
             this.maxConcurrentBulk = 1;
             this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
+            numShards = 5;
+            numReplicas = 1;
             logger.warn("no oauth specified, disabling river...");
             return;
         }
@@ -288,12 +297,16 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             this.bulkFlushInterval = TimeValue.parseTimeValue(XContentMapValues.nodeStringValue(
                     indexSettings.get("flush_interval"), "5s"), TimeValue.timeValueSeconds(5));
             this.maxConcurrentBulk = XContentMapValues.nodeIntegerValue(indexSettings.get("max_concurrent_bulk"), 1);
+            this.numShards = XContentMapValues.nodeIntegerValue(indexSettings.get("shards"), 5);
+            this.numReplicas = XContentMapValues.nodeIntegerValue(indexSettings.get("replicas"), 1);
         } else {
             indexName = riverName.name();
             typeName = "status";
             bulkSize = 100;
             this.maxConcurrentBulk = 1;
             this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
+            numShards = 5;
+            numReplicas = 1;
         }
 
         stream = buildTwitterStream();
@@ -350,6 +363,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         try {
             // We push ES mapping only if raw is false
             if (!raw) {
+                String settings = XContentFactory.jsonBuilder().startObject().field("number_of_shards", Integer.toString(numShards))
+                        .field("number_of_replicas", Integer.toString(numReplicas)).endObject().string();
                 String mapping = XContentFactory.jsonBuilder().startObject().startObject(typeName).startObject("properties")
                         .startObject("location").field("type", "geo_point").endObject()
                         .startObject("language").field("type", "string").field("index", "not_analyzed").endObject()
@@ -357,7 +372,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         .startObject("mention").startObject("properties").startObject("screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
                         .startObject("in_reply").startObject("properties").startObject("user_screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
                         .endObject().endObject().endObject().string();
-                client.admin().indices().prepareCreate(indexName).addMapping(typeName, mapping).execute().actionGet();
+                client.admin().indices().prepareCreate(indexName).setSettings(settings).addMapping(typeName, mapping).execute().actionGet();
             }
         } catch (Exception e) {
             if (ExceptionsHelper.unwrapCause(e) instanceof IndexAlreadyExistsException) {

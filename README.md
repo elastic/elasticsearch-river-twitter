@@ -53,7 +53,9 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
         "index" : "my_twitter_river",
         "type" : "status",
         "bulk_size" : 100,
-        "flush_interval" : "5s"
+        "flush_interval" : "5s",
+        "shards" : 5,
+        "replicas" : 1
     }
 }
 '
