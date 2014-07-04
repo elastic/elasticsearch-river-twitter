@@ -45,6 +45,9 @@ import twitter4j.json.DataObjectFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  *
@@ -89,6 +92,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     private volatile BulkProcessor bulkProcessor;
 
     private volatile boolean closed = false;
+
+    private DateFormat df;
 
     @SuppressWarnings({"unchecked"})
     @Inject
@@ -299,6 +304,21 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             this.maxConcurrentBulk = XContentMapValues.nodeIntegerValue(indexSettings.get("max_concurrent_bulk"), 1);
             this.numShards = XContentMapValues.nodeIntegerValue(indexSettings.get("shards"), 5);
             this.numReplicas = XContentMapValues.nodeIntegerValue(indexSettings.get("replicas"), 1);
+            String newIndexFrequency = XContentMapValues.nodeStringValue(indexSettings.get("newIndexFrequency"), "none");
+            if( newIndexFrequency.equals("none") )
+                df = new SimpleDateFormat("");
+            else if( newIndexFrequency.equals("daily") )
+                df = new SimpleDateFormat("_yyyyMMdd");
+            else if( newIndexFrequency.equals("weekly") )
+                df = new SimpleDateFormat("_yyyyww");
+            else if( newIndexFrequency.equals("monthly") )
+                df = new SimpleDateFormat("_yyyyMM");
+            else if( newIndexFrequency.equals("yearly") )
+                df = new SimpleDateFormat("_yyyy");
+            else {
+                logger.warn("Unknown indexing interval. Saving as single index.");
+                df = new SimpleDateFormat("");
+            }
         } else {
             indexName = riverName.name();
             typeName = "status";
@@ -372,7 +392,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         .startObject("mention").startObject("properties").startObject("screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
                         .startObject("in_reply").startObject("properties").startObject("user_screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
                         .endObject().endObject().endObject().string();
-                client.admin().indices().prepareCreate(indexName).setSettings(settings).addMapping(typeName, mapping).execute().actionGet();
+                client.admin().indices().preparePutTemplate(indexName).setTemplate(indexName + "*").setAliases(XContentFactory.jsonBuilder().startObject().startObject(indexName)
+                    .endObject().endObject().string()).setSettings(settings).addMapping(typeName, mapping).execute().actionGet();
             }
         } catch (Exception e) {
             if (ExceptionsHelper.unwrapCause(e) instanceof IndexAlreadyExistsException) {
@@ -603,7 +624,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         builder.endObject();
 
                         builder.endObject();
-                        bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(builder));
+                        bulkProcessor.add(Requests.indexRequest(indexName+df.format(status.getCreatedAt())).type(typeName)
+                            .id(Long.toString(status.getId())).create(true).source(builder));
                     }
                 } else if (logger.isTraceEnabled()) {
                     logger.trace("ignoring status cause retweet {} : {}", status.getUser().getName(), status.getText());
