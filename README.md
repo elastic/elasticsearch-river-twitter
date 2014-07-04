@@ -55,7 +55,8 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
         "bulk_size" : 100,
         "flush_interval" : "5s",
         "shards" : 5,
-        "replicas" : 1
+        "replicas" : 1,
+        "newIndexFrequency" : "none"
     }
 }
 '
@@ -96,6 +97,11 @@ Note that if you define a filter (see [next section](#filtered-stream)), type wi
 
 Tweets will be indexed once a `bulk_size` of them have been accumulated (default to `100`)
 or every `flush_interval` period (default to `5s`).
+
+A new index may automatically be created after a period of time by using the `newIndexFrequency`
+parameter. Valid options are `daily`, `weekly`, `monthly`, and `yearly` to have a new index
+created at those respective frequencies with an automatic alias pointing to the indexName which
+groups them all together. A value of `none` (default) will keep everything in a single index.
 
 Filtered Stream
 ===============
