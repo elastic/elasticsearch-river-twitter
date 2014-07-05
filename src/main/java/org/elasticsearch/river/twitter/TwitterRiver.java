@@ -45,6 +45,9 @@ import twitter4j.json.DataObjectFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  *
@@ -76,6 +79,9 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     private final int maxConcurrentBulk;
     private final TimeValue bulkFlushInterval;
 
+    private final int numShards;
+    private final int numReplicas;
+
     private FilterQuery filterQuery;
 
     private String streamType;
@@ -86,6 +92,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     private volatile BulkProcessor bulkProcessor;
 
     private volatile boolean closed = false;
+
+    private DateFormat df;
 
     @SuppressWarnings({"unchecked"})
     @Inject
@@ -157,6 +165,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 bulkSize = 100;
                 this.maxConcurrentBulk = 1;
                 this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
+                numShards = 5;
+                numReplicas = 1;
                 logger.warn("no filter defined for type filter. Disabling river...");
                 return;
             }
@@ -257,6 +267,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         bulkSize = 100;
                         this.maxConcurrentBulk = 1;
                         this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
+                        numShards = 5;
+                        numReplicas = 1;
                         logger.warn("can not set language filter without tracks, follow or locations. Disabling river.");
                         return;
                     }
@@ -276,6 +288,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             bulkSize = 100;
             this.maxConcurrentBulk = 1;
             this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
+            numShards = 5;
+            numReplicas = 1;
             logger.warn("no oauth specified, disabling river...");
             return;
         }
@@ -288,12 +302,31 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             this.bulkFlushInterval = TimeValue.parseTimeValue(XContentMapValues.nodeStringValue(
                     indexSettings.get("flush_interval"), "5s"), TimeValue.timeValueSeconds(5));
             this.maxConcurrentBulk = XContentMapValues.nodeIntegerValue(indexSettings.get("max_concurrent_bulk"), 1);
+            this.numShards = XContentMapValues.nodeIntegerValue(indexSettings.get("shards"), 5);
+            this.numReplicas = XContentMapValues.nodeIntegerValue(indexSettings.get("replicas"), 1);
+            String newIndexFrequency = XContentMapValues.nodeStringValue(indexSettings.get("newIndexFrequency"), "none");
+            if( newIndexFrequency.equals("none") )
+                df = new SimpleDateFormat("");
+            else if( newIndexFrequency.equals("daily") )
+                df = new SimpleDateFormat("_yyyyMMdd");
+            else if( newIndexFrequency.equals("weekly") )
+                df = new SimpleDateFormat("_yyyyww");
+            else if( newIndexFrequency.equals("monthly") )
+                df = new SimpleDateFormat("_yyyyMM");
+            else if( newIndexFrequency.equals("yearly") )
+                df = new SimpleDateFormat("_yyyy");
+            else {
+                logger.warn("Unknown indexing interval. Saving as single index.");
+                df = new SimpleDateFormat("");
+            }
         } else {
             indexName = riverName.name();
             typeName = "status";
             bulkSize = 100;
             this.maxConcurrentBulk = 1;
             this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
+            numShards = 5;
+            numReplicas = 1;
         }
 
         stream = buildTwitterStream();
@@ -350,6 +383,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         try {
             // We push ES mapping only if raw is false
             if (!raw) {
+                String settings = XContentFactory.jsonBuilder().startObject().field("number_of_shards", Integer.toString(numShards))
+                        .field("number_of_replicas", Integer.toString(numReplicas)).endObject().string();
                 String mapping = XContentFactory.jsonBuilder().startObject().startObject(typeName).startObject("properties")
                         .startObject("location").field("type", "geo_point").endObject()
                         .startObject("language").field("type", "string").field("index", "not_analyzed").endObject()
@@ -357,7 +392,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         .startObject("mention").startObject("properties").startObject("screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
                         .startObject("in_reply").startObject("properties").startObject("user_screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
                         .endObject().endObject().endObject().string();
-                client.admin().indices().prepareCreate(indexName).addMapping(typeName, mapping).execute().actionGet();
+                client.admin().indices().preparePutTemplate(indexName).setTemplate(indexName + "*").setAliases(XContentFactory.jsonBuilder().startObject().startObject(indexName)
+                    .endObject().endObject().string()).setSettings(settings).addMapping(typeName, mapping).execute().actionGet();
             }
         } catch (Exception e) {
             if (ExceptionsHelper.unwrapCause(e) instanceof IndexAlreadyExistsException) {
@@ -588,7 +624,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         builder.endObject();
 
                         builder.endObject();
-                        bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(builder));
+                        bulkProcessor.add(Requests.indexRequest(indexName+df.format(status.getCreatedAt())).type(typeName)
+                            .id(Long.toString(status.getId())).create(true).source(builder));
                     }
                 } else if (logger.isTraceEnabled()) {
                     logger.trace("ignoring status cause retweet {} : {}", status.getUser().getName(), status.getText());
@@ -602,7 +639,17 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         @Override
         public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
             if (statusDeletionNotice.getStatusId() != -1) {
-                bulkProcessor.add(Requests.deleteRequest(indexName).type(typeName).id(Long.toString(statusDeletionNotice.getStatusId())));
+
+                // Based on https://github.com/twitter/snowflake/blob/scala_28/src/main/scala/com/twitter/service/snowflake/IdWorker.scala
+                long timestamp = statusDeletionNotice.getStatusId();
+                timestamp >>= 22;
+                timestamp += 1288834974657L;
+                String index = indexName+df.format(new Date(timestamp));
+                if ( client.admin().indices().prepareExists(index).execute().actionGet().isExists() ) {
+                    bulkProcessor.add(Requests.deleteRequest(index).type(typeName)
+                        .id(Long.toString(statusDeletionNotice.getStatusId())));
+                }
+                  
             }
         }
 
