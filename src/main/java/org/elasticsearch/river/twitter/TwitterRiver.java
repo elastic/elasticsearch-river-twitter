@@ -639,7 +639,17 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         @Override
         public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
             if (statusDeletionNotice.getStatusId() != -1) {
-                bulkProcessor.add(Requests.deleteRequest(indexName).type(typeName).id(Long.toString(statusDeletionNotice.getStatusId())));
+
+                // Based on https://github.com/twitter/snowflake/blob/scala_28/src/main/scala/com/twitter/service/snowflake/IdWorker.scala
+                long timestamp = statusDeletionNotice.getStatusId();
+                timestamp >>= 22;
+                timestamp += 1288834974657L;
+                String index = indexName+df.format(new Date(timestamp));
+                if ( client.admin().indices().prepareExists(index).execute().actionGet().isExists() ) {
+                    bulkProcessor.add(Requests.deleteRequest(index).type(typeName)
+                        .id(Long.toString(statusDeletionNotice.getStatusId())));
+                }
+                  
             }
         }
 
