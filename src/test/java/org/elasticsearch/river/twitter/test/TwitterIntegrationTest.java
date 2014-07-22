@@ -19,7 +19,6 @@
 
 package org.elasticsearch.river.twitter.test;
 
-import org.apache.lucene.util.LuceneTestCase;
 import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchResponse;
@@ -145,7 +144,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
         }
     }
 
-    @Test @LuceneTestCase.AwaitsFix(bugUrl = "https://github.com/elasticsearch/elasticsearch-river-twitter/issues/60")
+    @Test
     public void testIgnoreRT() throws IOException, InterruptedException {
         launchTest(jsonBuilder()
             .startObject()

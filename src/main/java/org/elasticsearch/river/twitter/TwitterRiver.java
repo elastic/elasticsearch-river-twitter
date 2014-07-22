@@ -506,7 +506,11 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         public void onStatus(Status status) {
             try {
                 // #24: We want to ignore retweets (default to false) https://github.com/elasticsearch/elasticsearch-river-twitter/issues/24
-                if (!ignoreRetweet || status.isRetweet()) {
+                if (status.isRetweet() && ignoreRetweet) {
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("ignoring status cause retweet {} : {}", status.getUser().getName(), status.getText());
+                    }
+                } else {
                     if (logger.isTraceEnabled()) {
                         logger.trace("status {} : {}", status.getUser().getName(), status.getText());
                     }
@@ -632,8 +636,6 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         builder.endObject();
                         bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(builder));
                     }
-                } else if (logger.isTraceEnabled()) {
-                    logger.trace("ignoring status cause retweet {} : {}", status.getUser().getName(), status.getText());
                 }
 
             } catch (Exception e) {
