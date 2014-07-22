@@ -40,8 +40,8 @@ Create river
 
 Creating the twitter river can be done using:
 
-```sh
-curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
+```
+PUT _river/my_twitter_river/_meta
 {
     "type" : "twitter",
     "twitter" : {
@@ -59,7 +59,6 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
         "flush_interval" : "5s"
     }
 }
-'
 ```
 
 The above lists all the options controlling the creation of a twitter river.
@@ -79,10 +78,11 @@ river.twitter.oauth.access_token_secret: "*** YOUR Access token secret HERE ***"
 
 In that case, you can create the river using:
 
-```sh
-curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '{
+```
+PUT _river/my_twitter_river/_meta
+{
     "type" : "twitter"
-}'
+}
 ```
 
 You can also overload any of `elasticsearch.yml` setting. A good practice could be to have `consumer_key` and 
@@ -102,21 +102,14 @@ See [User Stream](#user-stream)
 
 For example:
 
-```sh
-curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
+```
+PUT _river/my_twitter_river/_meta
 {
     "type" : "twitter",
     "twitter" : {
-        "oauth" : {
-            "consumer_key" : "*** YOUR Consumer key HERE ***",
-            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
-            "access_token" : "*** YOUR Access token HERE ***",
-            "access_token_secret" : "*** YOUR Access token secret HERE ***"
-        },
         "type" : "firehose"
     }
 }
-'
 ```
 
 Note that if you define a filter (see [next section](#filtered-stream)), type will be automatically set to `filter`.
@@ -131,16 +124,11 @@ Filtered stream can also be supported (as per the twitter stream API). Filter st
 support `tracks`, `follow`, `locations` and `language`. The configuration is the same as the twitter API (a single comma
 separated string value, or using json arrays). Here is an example:
 
-```javascript
+```
+PUT _river/my_twitter_river/_meta
 {
     "type" : "twitter",
     "twitter" : {
-        "oauth" : {
-            "consumer_key" : "*** YOUR Consumer key HERE ***",
-            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
-            "access_token" : "*** YOUR Access token HERE ***",
-            "access_token_secret" : "*** YOUR Access token secret HERE ***"
-        },
         "filter" : {
             "tracks" : "test,something,please",
             "follow" : "111,222,333",
@@ -160,16 +148,11 @@ whatever language defined in [Twitter Advanced Search](https://twitter.com/searc
 
 Here is an array based configuration example:
 
-```javascript
+```
+PUT _river/my_twitter_river/_meta
 {
     "type" : "twitter",
     "twitter" : {
-        "oauth" : {
-            "consumer_key" : "*** YOUR Consumer key HERE ***",
-            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
-            "access_token" : "*** YOUR Access token HERE ***",
-            "access_token_secret" : "*** YOUR Access token secret HERE ***"
-        },
         "filter" : {
             "tracks" : ["test", "something"],
             "follow" : [111, 222, 333],
@@ -186,16 +169,11 @@ User Stream
 User stream can also be supported (as per the twitter stream API). This stream return tweets on the authenticated user's
 timeline. Here is a basic configuration example:
 
-```javascript
+```
+PUT _river/my_twitter_river/_meta
 {
     "type" : "twitter",
     "twitter" : {
-        "oauth" : {
-            "consumer_key" : "*** YOUR Consumer key HERE ***",
-            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
-            "access_token" : "*** YOUR Access token HERE ***",
-            "access_token_secret" : "*** YOUR Access token secret HERE ***"
-        },
         "type" : "user"
     }
 }
@@ -208,28 +186,21 @@ By default, elasticsearch twitter river will convert tweets to an equivalent rep
 in elasticsearch. If you want to index RAW twitter JSON content without any transformation,
 you can set `raw` to `true`:
 
-```sh
-curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
+```
+PUT _river/my_twitter_river/_meta
 {
     "type" : "twitter",
     "twitter" : {
-        "oauth" : {
-            "consumer_key" : "*** YOUR Consumer key HERE ***",
-            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
-            "access_token" : "*** YOUR Access token HERE ***",
-            "access_token_secret" : "*** YOUR Access token secret HERE ***"
-        },
         "raw" : true
     }
 }
-'
 ```
 
 Note that you should think of creating a mapping first for your tweets. See Twitter documentation on
 [raw Tweet format](https://dev.twitter.com/docs/platform-objects/tweets):
 
-```sh
-curl -XPUT localhost:9200/my_twitter_river/status/_mapping -d '
+```
+PUT my_twitter_river/status/_mapping
 {
     "status" : {
         "properties" : {
@@ -237,7 +208,6 @@ curl -XPUT localhost:9200/my_twitter_river/status/_mapping -d '
         }
     }
 }
-'
 ```
 
 Ignoring Retweets
@@ -245,21 +215,14 @@ Ignoring Retweets
 
 If you don't want to index retweets (aka RT), just set `ignore_retweet` to `true` (default to `false`):
 
-```sh
-curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
+```
+PUT _river/my_twitter_river/_meta
 {
     "type" : "twitter",
     "twitter" : {
-        "oauth" : {
-            "consumer_key" : "*** YOUR Consumer key HERE ***",
-            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
-            "access_token" : "*** YOUR Access token HERE ***",
-            "access_token_secret" : "*** YOUR Access token secret HERE ***"
-        },
         "ignore_retweet" : true
     }
 }
-'
 ```
 
 
@@ -268,8 +231,8 @@ Remove the river
 
 If you need to stop the Twitter river, you have to remove it:
 
-```sh
-curl -XDELETE http://localhost:9200/_river/my_twitter_river/
+```
+DELETE _river/my_twitter_river/
 ```
 
 
