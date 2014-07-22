@@ -64,6 +64,30 @@ curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '
 
 The above lists all the options controlling the creation of a twitter river.
 
+If you don't define `index.index`, it will use your river name (`my_twitter_river`) as the default index name.
+If you don't define `index.type`, default `status` type will be used. 
+
+Note that you can define any or all of your oauth settings in `elasticsearch.yml` file on each node by prefixing 
+setting with `river.twitter.`:
+
+```
+river.twitter.oauth.consumer_key: "*** YOUR Consumer key HERE ***"
+river.twitter.oauth.consumer_secret: "*** YOUR Consumer secret HERE ***"
+river.twitter.oauth.access_token: "*** YOUR Access token HERE ***"
+river.twitter.oauth.access_token_secret: "*** YOUR Access token secret HERE ***"
+```
+
+In that case, you can create the river using:
+
+```sh
+curl -XPUT localhost:9200/_river/my_twitter_river/_meta -d '{
+    "type" : "twitter"
+}'
+```
+
+You can also overload any of `elasticsearch.yml` setting. A good practice could be to have `consumer_key` and 
+`consumer_secret` in `elasticsearch.yml` and provide to the river `access_token` and `access_token_secret` properties.
+
 By default, the twitter river will read a small random of all public statuses using
 [sample API](https://dev.twitter.com/docs/api/1.1/get/statuses/sample).
 
