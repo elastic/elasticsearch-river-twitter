@@ -36,12 +36,13 @@ public class TwitterFilterLanguageRiverTest extends TwitterRiverAbstractTest {
 
     @Override
     protected XContentBuilder addSpecificRiverSettings(XContentBuilder xb) throws IOException {
-        xb
+        xb.startObject("twitter")
                 .field("type", "filter")
                 .startObject("filter")
                     .field("tracks", "le")
                     .field("language", "fr")
-                .endObject();
+                .endObject()
+        .endObject();
         return xb;
     }
 }

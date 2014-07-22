@@ -36,9 +36,10 @@ public class TwitterIgnoreRTRiverTest extends TwitterRiverAbstractTest {
 
     @Override
     protected XContentBuilder addSpecificRiverSettings(XContentBuilder xb) throws IOException {
-        xb
+        xb.startObject("twitter")
             .field("type", "sample")
-            .field("ignore_retweet", true);
+            .field("ignore_retweet", true)
+        .endObject();
         return xb;
     }
 }

@@ -49,19 +49,12 @@ public abstract class TwitterRiverAbstractTest {
     protected XContentBuilder riverSettings() throws IOException {
         XContentBuilder xb = XContentFactory.jsonBuilder()
             .startObject()
-                .field("type", "twitter")
-                .startObject("twitter")
-                    .startObject("oauth")
-                        .field("consumer_key", oauth_consumer_key)
-                        .field("consumer_secret", oauth_consumer_secret)
-                        .field("access_token", oauth_access_token)
-                        .field("access_token_secret", oauth_access_token_secret)
-                    .endObject();
+                .field("type", "twitter");
 
         // We inject specific test settings here
         xb = addSpecificRiverSettings(xb);
 
-        xb.endObject().endObject();
+        xb.endObject();
         return xb;
     }
 
@@ -122,6 +115,10 @@ public abstract class TwitterRiverAbstractTest {
                                 .put("path.data", "./target/es/data")
                                 .put("path.logs", "./target/es/logs")
                                 .put("path.work", "./target/es/work")
+                                .put("river.twitter.oauth.consumer_key", oauth_consumer_key)
+                                .put("river.twitter.oauth.consumer_secret", oauth_consumer_secret)
+                                .put("river.twitter.oauth.access_token", oauth_access_token)
+                                .put("river.twitter.oauth.access_token_secret", oauth_access_token_secret)
                 ).node();
 
         // We wait now for the yellow (or green) status

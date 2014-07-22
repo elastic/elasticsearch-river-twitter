@@ -36,10 +36,11 @@ public class TwitterRiverTest extends TwitterRiverAbstractTest {
 
     @Override
     protected XContentBuilder addSpecificRiverSettings(XContentBuilder xb) throws IOException {
-        xb
+        xb.startObject("twitter")
             .startObject("filter")
                 .field("tracks", track)
-            .endObject();
+            .endObject()
+        .endObject();
         return xb;
     }
 }

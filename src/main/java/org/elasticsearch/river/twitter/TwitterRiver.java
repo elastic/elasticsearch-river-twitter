@@ -29,6 +29,7 @@ import org.elasticsearch.client.Requests;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -55,18 +56,18 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     private final Client client;
 
-    private String oauthConsumerKey = null;
-    private String oauthConsumerSecret = null;
-    private String oauthAccessToken = null;
-    private String oauthAccessTokenSecret = null;
+    private final String oauthConsumerKey;
+    private final String oauthConsumerSecret;
+    private final String oauthAccessToken;
+    private final String oauthAccessTokenSecret;
 
-    private String proxyHost;
-    private String proxyPort;
-    private String proxyUser;
-    private String proxyPassword;
+    private final String proxyHost;
+    private final String proxyPort;
+    private final String proxyUser;
+    private final String proxyPassword;
 
-    private boolean raw = false;
-    private boolean ignoreRetweet = false;
+    private final boolean raw;
+    private final boolean ignoreRetweet;
 
     private final String indexName;
 
@@ -76,9 +77,9 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     private final int maxConcurrentBulk;
     private final TimeValue bulkFlushInterval;
 
-    private FilterQuery filterQuery;
+    private final FilterQuery filterQuery;
 
-    private String streamType;
+    private final String streamType;
 
 
     private volatile TwitterStream stream;
@@ -89,13 +90,15 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     @SuppressWarnings({"unchecked"})
     @Inject
-    public TwitterRiver(RiverName riverName, RiverSettings settings, Client client, ThreadPool threadPool) {
-        super(riverName, settings);
+    public TwitterRiver(RiverName riverName, RiverSettings riverSettings, Client client, ThreadPool threadPool, Settings settings) {
+        super(riverName, riverSettings);
         this.client = client;
         this.threadPool = threadPool;
 
-        if (settings.settings().containsKey("twitter")) {
-            Map<String, Object> twitterSettings = (Map<String, Object>) settings.settings().get("twitter");
+        String riverStreamType;
+
+        if (riverSettings.settings().containsKey("twitter")) {
+            Map<String, Object> twitterSettings = (Map<String, Object>) riverSettings.settings().get("twitter");
 
             raw = XContentMapValues.nodeBooleanValue(twitterSettings.get("raw"), false);
             ignoreRetweet = XContentMapValues.nodeBooleanValue(twitterSettings.get("ignore_retweet"), false);
@@ -106,55 +109,65 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                     // TODO Remove it in 2.3.0
                     logger.warn("consumerKey property has been deprecated. Please use consumer_key instead.");
                     oauthConsumerKey = XContentMapValues.nodeStringValue(oauth.get("consumerKey"), null);
-                }
-                if (oauth.containsKey("consumer_key")) {
+                } else if (oauth.containsKey("consumer_key")) {
                     oauthConsumerKey = XContentMapValues.nodeStringValue(oauth.get("consumer_key"), null);
+                } else {
+                    oauthConsumerKey = settings.get("river.twitter.oauth.consumer_key");
                 }
                 if (oauth.containsKey("consumerSecret")) {
                     // TODO Remove it in 2.3.0
                     logger.warn("consumerSecret property has been deprecated. Please use consumer_secret instead.");
                     oauthConsumerSecret = XContentMapValues.nodeStringValue(oauth.get("consumerSecret"), null);
-                }
-                if (oauth.containsKey("consumer_secret")) {
+                } else if (oauth.containsKey("consumer_secret")) {
                     oauthConsumerSecret = XContentMapValues.nodeStringValue(oauth.get("consumer_secret"), null);
+                } else {
+                    oauthConsumerSecret = settings.get("river.twitter.oauth.consumer_secret");
                 }
                 if (oauth.containsKey("accessToken")) {
                     // TODO Remove it in 2.3.0
                     logger.warn("accessToken property has been deprecated. Please use access_token instead.");
                     oauthAccessToken = XContentMapValues.nodeStringValue(oauth.get("accessToken"), null);
-                }
-                if (oauth.containsKey("access_token")) {
+                } else if (oauth.containsKey("access_token")) {
                     oauthAccessToken = XContentMapValues.nodeStringValue(oauth.get("access_token"), null);
+                } else {
+                    oauthAccessToken = settings.get("river.twitter.oauth.access_token");
                 }
                 if (oauth.containsKey("accessTokenSecret")) {
                     // TODO Remove it in 2.3.0
                     logger.warn("accessTokenSecret property has been deprecated. Please use access_token_secret instead.");
                     oauthAccessTokenSecret = XContentMapValues.nodeStringValue(oauth.get("accessTokenSecret"), null);
-                }
-                if (oauth.containsKey("access_token_secret")) {
+                } else if (oauth.containsKey("access_token_secret")) {
                     oauthAccessTokenSecret = XContentMapValues.nodeStringValue(oauth.get("access_token_secret"), null);
+                } else {
+                    oauthAccessTokenSecret = settings.get("river.twitter.oauth.access_token_secret");
                 }
+            } else {
+                oauthConsumerKey = settings.get("river.twitter.oauth.consumer_key");
+                oauthConsumerSecret = settings.get("river.twitter.oauth.consumer_secret");
+                oauthAccessToken = settings.get("river.twitter.oauth.access_token");
+                oauthAccessTokenSecret = settings.get("river.twitter.oauth.access_token_secret");
             }
+
             if (twitterSettings.containsKey("proxy")) {
                 Map<String, Object> proxy = (Map<String, Object>) twitterSettings.get("proxy");
-                if (proxy.containsKey("host")) {
-                    proxyHost = XContentMapValues.nodeStringValue(proxy.get("host"), null);
-                }
-                if (proxy.containsKey("port")) {
-                    proxyPort = XContentMapValues.nodeStringValue(proxy.get("port"), null);
-                }
-                if (proxy.containsKey("user")) {
-                    proxyUser = XContentMapValues.nodeStringValue(proxy.get("user"), null);
-                }
-                if (proxy.containsKey("password")) {
-                    proxyPassword = XContentMapValues.nodeStringValue(proxy.get("password"), null);
-                }
+                proxyHost = XContentMapValues.nodeStringValue(proxy.get("host"), null);
+                proxyPort = XContentMapValues.nodeStringValue(proxy.get("port"), null);
+                proxyUser = XContentMapValues.nodeStringValue(proxy.get("user"), null);
+                proxyPassword = XContentMapValues.nodeStringValue(proxy.get("password"), null);
+            } else {
+                proxyHost = null;
+                proxyPort = null;
+                proxyUser = null;
+                proxyPassword =null;
             }
-            streamType = XContentMapValues.nodeStringValue(twitterSettings.get("type"), "sample");
+
+            riverStreamType = XContentMapValues.nodeStringValue(twitterSettings.get("type"), "sample");
             Map<String, Object> filterSettings = (Map<String, Object>) twitterSettings.get("filter");
 
-            if (streamType.equals("filter") && filterSettings == null) {
+            if (riverStreamType.equals("filter") && filterSettings == null) {
+                filterQuery = null;
                 stream = null;
+                streamType = null;
                 indexName = null;
                 typeName = "status";
                 bulkSize = 100;
@@ -165,7 +178,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             }
 
             if (filterSettings != null) {
-                streamType = "filter";
+                riverStreamType = "filter";
                 filterQuery = new FilterQuery();
                 filterQuery.count(XContentMapValues.nodeIntegerValue(filterSettings.get("count"), 0));
                 Object tracks = filterSettings.get("tracks");
@@ -255,6 +268,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                             filterQuery.language(Strings.commaDelimitedListToStringArray(language.toString()));
                         }
                     } else {
+                        streamType = null;
                         indexName = null;
                         typeName = "status";
                         bulkSize = 100;
@@ -264,16 +278,28 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         return;
                     }
                 }
+            } else {
+                filterQuery = null;
             }
+        } else {
+            // No specific settings. We need to use some defaults
+            riverStreamType = "sample";
+            raw = false;
+            ignoreRetweet = false;
+            oauthConsumerKey = settings.get("river.twitter.oauth.consumer_key");
+            oauthConsumerSecret = settings.get("river.twitter.oauth.consumer_secret");
+            oauthAccessToken = settings.get("river.twitter.oauth.access_token");
+            oauthAccessTokenSecret = settings.get("river.twitter.oauth.access_token_secret");
+            filterQuery = null;
+            proxyHost = null;
+            proxyPort = null;
+            proxyUser = null;
+            proxyPassword =null;
         }
 
-        logger.info("creating twitter stream river");
-        if (raw && logger.isDebugEnabled()) {
-            logger.debug("will index twitter raw content...");
-        }
-
-        if (oauthAccessToken == null && oauthConsumerKey == null && oauthConsumerSecret == null && oauthAccessTokenSecret == null) {
+        if (oauthAccessToken == null || oauthConsumerKey == null || oauthConsumerSecret == null || oauthAccessTokenSecret == null) {
             stream = null;
+            streamType = null;
             indexName = null;
             typeName = "status";
             bulkSize = 100;
@@ -283,8 +309,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             return;
         }
 
-        if (settings.settings().containsKey("index")) {
-            Map<String, Object> indexSettings = (Map<String, Object>) settings.settings().get("index");
+        if (riverSettings.settings().containsKey("index")) {
+            Map<String, Object> indexSettings = (Map<String, Object>) riverSettings.settings().get("index");
             indexName = XContentMapValues.nodeStringValue(indexSettings.get("index"), riverName.name());
             typeName = XContentMapValues.nodeStringValue(indexSettings.get("type"), "status");
             this.bulkSize = XContentMapValues.nodeIntegerValue(indexSettings.get("bulk_size"), 100);
@@ -299,6 +325,12 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
         }
 
+        logger.info("creating twitter stream river");
+        if (raw && logger.isDebugEnabled()) {
+            logger.debug("will index twitter raw content...");
+        }
+
+        streamType = riverStreamType;
         stream = buildTwitterStream();
     }
 
