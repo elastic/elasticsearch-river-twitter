@@ -108,24 +108,32 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             if (twitterSettings.containsKey("oauth")) {
                 Map<String, Object> oauth = (Map<String, Object>) twitterSettings.get("oauth");
                 if (oauth.containsKey("consumerKey")) {
+                    // TODO Remove it in 2.3.0
+                    logger.warn("consumerKey property has been deprecated. Please use consumer_key instead.");
                     oauthConsumerKey = XContentMapValues.nodeStringValue(oauth.get("consumerKey"), null);
                 }
                 if (oauth.containsKey("consumer_key")) {
                     oauthConsumerKey = XContentMapValues.nodeStringValue(oauth.get("consumer_key"), null);
                 }
                 if (oauth.containsKey("consumerSecret")) {
+                    // TODO Remove it in 2.3.0
+                    logger.warn("consumerSecret property has been deprecated. Please use consumer_secret instead.");
                     oauthConsumerSecret = XContentMapValues.nodeStringValue(oauth.get("consumerSecret"), null);
                 }
                 if (oauth.containsKey("consumer_secret")) {
                     oauthConsumerSecret = XContentMapValues.nodeStringValue(oauth.get("consumer_secret"), null);
                 }
                 if (oauth.containsKey("accessToken")) {
+                    // TODO Remove it in 2.3.0
+                    logger.warn("accessToken property has been deprecated. Please use access_token instead.");
                     oauthAccessToken = XContentMapValues.nodeStringValue(oauth.get("accessToken"), null);
                 }
                 if (oauth.containsKey("access_token")) {
                     oauthAccessToken = XContentMapValues.nodeStringValue(oauth.get("access_token"), null);
                 }
                 if (oauth.containsKey("accessTokenSecret")) {
+                    // TODO Remove it in 2.3.0
+                    logger.warn("accessTokenSecret property has been deprecated. Please use access_token_secret instead.");
                     oauthAccessTokenSecret = XContentMapValues.nodeStringValue(oauth.get("accessTokenSecret"), null);
                 }
                 if (oauth.containsKey("access_token_secret")) {
