@@ -97,11 +97,6 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         if (settings.settings().containsKey("twitter")) {
             Map<String, Object> twitterSettings = (Map<String, Object>) settings.settings().get("twitter");
 
-            // Check removed properties
-            if (twitterSettings.get("user") != null || twitterSettings.get("password") != null) {
-                logger.warn("user and password are not supported anymore. See https://github.com/elasticsearch/elasticsearch-river-twitter/issues/28");
-            }
-
             raw = XContentMapValues.nodeBooleanValue(twitterSettings.get("raw"), false);
             ignoreRetweet = XContentMapValues.nodeBooleanValue(twitterSettings.get("ignore_retweet"), false);
 
