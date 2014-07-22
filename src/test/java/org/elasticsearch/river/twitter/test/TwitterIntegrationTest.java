@@ -21,9 +21,12 @@ package org.elasticsearch.river.twitter.test;
 
 import org.apache.lucene.util.LuceneTestCase;
 import org.elasticsearch.action.count.CountResponse;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.base.Predicate;
+import org.elasticsearch.common.joda.time.DateTime;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
@@ -34,14 +37,17 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.Assert;
 import org.junit.Test;
+import twitter4j.Status;
+import twitter4j.Twitter;
+import twitter4j.TwitterException;
+import twitter4j.TwitterFactory;
+import twitter4j.auth.AccessToken;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 
@@ -75,7 +81,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
         return Strings.toUnderscoreCase(getTestName());
     }
 
-    private void launchTest(XContentBuilder river, final Integer numDocs)
+    private void launchTest(XContentBuilder river, final Integer numDocs, boolean removeRiver)
             throws IOException, InterruptedException {
         logger.info("  -> Checking internet working");
         new HttpClient("www.elasticsearch.org", 80).request("/");
@@ -104,8 +110,10 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
             }
         }, 5, TimeUnit.MINUTES), equalTo(true));
 
-        logger.info("  -> Remove river");
-        client().admin().indices().prepareDeleteMapping("_river").setType(getDbName()).get();
+        if (removeRiver) {
+            logger.info("  -> Remove river");
+            client().admin().indices().prepareDeleteMapping("_river").setType(getDbName()).get();
+        }
     }
 
     @Test
@@ -120,7 +128,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                         .field("language", "fr")
                     .endObject()
                .endObject()
-            .endObject(), randomIntBetween(5, 50));
+            .endObject(), randomIntBetween(5, 50), true);
 
         // We should have only FR data
         SearchResponse response = client().prepareSearch(getDbName())
@@ -146,7 +154,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                     .field("type", "sample")
                     .field("ignore_retweet", true)
                .endObject()
-            .endObject(), randomIntBetween(5, 50));
+            .endObject(), randomIntBetween(5, 50), true);
 
         // We should have only FR data
         SearchResponse response = client().prepareSearch(getDbName())
@@ -172,7 +180,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                           .field("tracks", track)
                     .endObject()
                .endObject()
-            .endObject(), randomIntBetween(5, 50));
+            .endObject(), randomIntBetween(5, 50), true);
 
         // We should have data we don't have without raw set to true
         SearchResponse response = client().prepareSearch(getDbName())
@@ -193,17 +201,17 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
     @Test
     public void testFollow() throws IOException, InterruptedException {
         launchTest(jsonBuilder()
-            .startObject()
-                .field("type", "twitter")
-                .startObject("twitter")
-                    .startObject("filter")
-                        .field("follow", "783214")
+                .startObject()
+                    .field("type", "twitter")
+                    .startObject("twitter")
+                        .startObject("filter")
+                            .field("follow", "783214")
+                        .endObject()
                     .endObject()
-                .endObject()
-                .startObject("index")
-                    .field("bulk_size", 1)
-               .endObject()
-            .endObject(), 1);
+                    .startObject("index")
+                        .field("bulk_size", 1)
+                    .endObject()
+                .endObject(), 1, true);
     }
 
     @Test
@@ -216,7 +224,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                         .field("tracks", track)
                     .endObject()
                .endObject()
-            .endObject(), randomIntBetween(1, 10));
+            .endObject(), randomIntBetween(1, 10), true);
 
         // We should have only FR data
         SearchResponse response = client().prepareSearch(getDbName())
@@ -236,6 +244,63 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                 .startObject("twitter")
                     .field("type", "sample")
                .endObject()
-            .endObject(), randomIntBetween(10, 200));
+            .endObject(), randomIntBetween(10, 200), true);
+    }
+
+    @Test
+    public void testUserStream() throws IOException, InterruptedException, TwitterException {
+        launchTest(jsonBuilder()
+            .startObject()
+                .field("type", "twitter")
+                .startObject("twitter")
+                    .field("type", "user")
+               .endObject()
+            .endObject(), 0, false);
+
+        // Wait for the river to start
+        awaitBusy(new Predicate<Object>() {
+            public boolean apply(Object obj) {
+                try {
+                    GetResponse response = get("_river", getDbName(), "_status");
+                    return response.isExists();
+                } catch (IndexMissingException e) {
+                    return false;
+                }
+            }
+        }, 10, TimeUnit.SECONDS);
+
+        // Generate a tweet on your timeline
+        // We need to read settings from elasticsearch.yml file
+        Settings settings = cluster().getInstance(Settings.class);
+        AccessToken accessToken = new AccessToken(
+                settings.get("river.twitter.oauth.access_token"),
+                settings.get("river.twitter.oauth.access_token_secret"));
+
+
+        Twitter twitter = new TwitterFactory().getInstance();
+        twitter.setOAuthConsumer(
+                settings.get("river.twitter.oauth.consumer_key"),
+                settings.get("river.twitter.oauth.consumer_secret"));
+        twitter.setOAuthAccessToken(accessToken);
+
+        Status status = twitter.updateStatus("testing elasticsearch twitter river. Please ignore. " +
+                        DateTime.now().toString());
+        logger.info("  -> tweet [{}] sent: [{}]", status.getId(), status.getText());
+
+        assertThat(awaitBusy(new Predicate<Object>() {
+            public boolean apply(Object obj) {
+                try {
+                    refresh();
+                    SearchResponse response = client().prepareSearch(getDbName()).get();
+                    logger.info("  -> got {} docs in {} index", response.getHits().totalHits(), getDbName());
+                    return response.getHits().totalHits() >= 1;
+                } catch (IndexMissingException e) {
+                    return false;
+                }
+            }
+        }, 1, TimeUnit.MINUTES), is(true));
+
+        logger.info("  -> Remove river");
+        client().admin().indices().prepareDeleteMapping("_river").setType(getDbName()).get();
     }
 }

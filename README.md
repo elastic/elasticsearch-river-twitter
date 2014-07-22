@@ -96,6 +96,8 @@ But, you can define statuses type you want to read:
 * [sample](https://dev.twitter.com/docs/api/1.1/get/statuses/sample): the default one
 * [filter](https://dev.twitter.com/docs/api/1.1/post/statuses/filter): track for text, users and locations.
 See [Filtered Stream](#filtered-stream)
+* [user](https://dev.twitter.com/docs/streaming-apis/streams/user): listen to tweets in the authenticated user's timeline.
+See [User Stream](#user-stream)
 * [firehose](https://dev.twitter.com/docs/api/1.1/get/statuses/firehose): all public statuses (restricted access)
 
 For example:
@@ -174,6 +176,27 @@ Here is an array based configuration example:
             "locations" : [ [-122.75,36.8], [-121.75,37.8], [-74,40], [-73,41]],
             "language" : [ "fr", "en" ]
         }
+    }
+}
+```
+
+User Stream
+===========
+
+User stream can also be supported (as per the twitter stream API). This stream return tweets on the authenticated user's
+timeline. Here is a basic configuration example:
+
+```javascript
+{
+    "type" : "twitter",
+    "twitter" : {
+        "oauth" : {
+            "consumer_key" : "*** YOUR Consumer key HERE ***",
+            "consumer_secret" : "*** YOUR Consumer secret HERE ***",
+            "access_token" : "*** YOUR Access token HERE ***",
+            "access_token_secret" : "*** YOUR Access token secret HERE ***"
+        },
+        "type" : "user"
     }
 }
 ```

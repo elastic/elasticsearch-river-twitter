@@ -40,6 +40,7 @@ import org.elasticsearch.river.River;
 import org.elasticsearch.river.RiverName;
 import org.elasticsearch.river.RiverSettings;
 import org.elasticsearch.threadpool.ThreadPool;
+
 import twitter4j.*;
 import twitter4j.conf.ConfigurationBuilder;
 import twitter4j.json.DataObjectFactory;
@@ -357,7 +358,10 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         cb.setUseSSL(true);
 
         TwitterStream stream = new TwitterStreamFactory(cb.build()).getInstance();
-        stream.addListener(new StatusHandler());
+        if (streamType.equals("user")) 
+        	stream.addListener(new UserStreamHandler());
+        else 
+        	stream.addListener(new StatusHandler());
 
         return stream;
     }
@@ -371,6 +375,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             stream.filter(filterQuery);
         } else if (streamType.equals("firehose")) {
             stream.firehose(0);
+        } else if (streamType.equals("user")) {
+        	stream.user();
         } else {
             stream.sample();
         }
@@ -656,5 +662,25 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 }
             });
         }
+    }
+    
+    private class UserStreamHandler extends UserStreamAdapter {
+
+    	private final StatusHandler statusHandler = new StatusHandler(); 
+    	
+		@Override
+		public void onException(Exception ex) {
+			statusHandler.onException(ex);
+		}
+
+		@Override
+		public void onStatus(Status status) {
+			statusHandler.onStatus(status);
+		}
+
+		@Override
+		public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
+			statusHandler.onDeletionNotice(statusDeletionNotice);
+		}
     }
 }
