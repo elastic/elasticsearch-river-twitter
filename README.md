@@ -262,7 +262,8 @@ To run test:
 mvn -Dtests.twitter=true -Dtests.config=/path/to/config/file/elasticsearch.yml clean test
 ```
 
-
+Note that if you want to test User Stream, you need to define write rights for your twitter 
+application.
 
 License
 -------
