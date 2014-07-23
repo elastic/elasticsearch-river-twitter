@@ -34,6 +34,7 @@ import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.indices.IndexMissingException;
+import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.river.twitter.test.helper.HttpClient;
 import org.elasticsearch.river.twitter.test.helper.HttpClientResponse;
 import org.elasticsearch.search.SearchHit;
@@ -84,7 +85,8 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
     @Override
     protected Settings nodeSettings(int nodeOrdinal) {
         ImmutableSettings.Builder settings = ImmutableSettings.builder()
-                .put(super.nodeSettings(nodeOrdinal));
+                .put(super.nodeSettings(nodeOrdinal))
+                .put("plugins." + PluginsService.LOAD_PLUGIN_FROM_CLASSPATH, true);
 
         Environment environment = new Environment();
 
@@ -298,7 +300,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
 
         // Generate a tweet on your timeline
         // We need to read settings from elasticsearch.yml file
-        Settings settings = cluster().getInstance(Settings.class);
+        Settings settings = internalCluster().getInstance(Settings.class);
         AccessToken accessToken = new AccessToken(
                 settings.get("river.twitter.oauth.access_token"),
                 settings.get("river.twitter.oauth.access_token_secret"));
