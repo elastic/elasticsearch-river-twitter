@@ -225,6 +225,21 @@ PUT _river/my_twitter_river/_meta
 }
 ```
 
+Geo location points as array
+============================
+
+By default, elasticsearch twitter river index `location` field using the *lat lon as properties* format.
+You can set `geo_as_array` to `true` if you prefer having `location` indexed as an array `[lon, lat]`.
+
+```
+PUT _river/my_twitter_river/_meta
+{
+    "type" : "twitter",
+    "twitter" : {
+        "geo_as_array" : true
+    }
+}
+```
 
 Remove the river
 ================
