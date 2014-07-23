@@ -67,6 +67,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     private final boolean raw;
     private final boolean ignoreRetweet;
+    private final boolean geoAsArray;
 
     private final String indexName;
 
@@ -101,6 +102,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
             raw = XContentMapValues.nodeBooleanValue(twitterSettings.get("raw"), false);
             ignoreRetweet = XContentMapValues.nodeBooleanValue(twitterSettings.get("ignore_retweet"), false);
+            geoAsArray = XContentMapValues.nodeBooleanValue(twitterSettings.get("geo_as_array"), false);
 
             if (twitterSettings.containsKey("oauth")) {
                 Map<String, Object> oauth = (Map<String, Object>) twitterSettings.get("oauth");
@@ -285,6 +287,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             riverStreamType = "sample";
             raw = false;
             ignoreRetweet = false;
+            geoAsArray = false;
             oauthConsumerKey = settings.get("river.twitter.oauth.consumer_key");
             oauthConsumerSecret = settings.get("river.twitter.oauth.consumer_secret");
             oauthAccessToken = settings.get("river.twitter.oauth.access_token");
@@ -585,10 +588,17 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                             builder.array("contributor", status.getContributors());
                         }
                         if (status.getGeoLocation() != null) {
-                            builder.startObject("location");
-                            builder.field("lat", status.getGeoLocation().getLatitude());
-                            builder.field("lon", status.getGeoLocation().getLongitude());
-                            builder.endObject();
+                            if (geoAsArray) {
+                                builder.startArray("location");
+                                builder.value(status.getGeoLocation().getLongitude());
+                                builder.value(status.getGeoLocation().getLatitude());
+                                builder.endArray();
+                            } else {
+                                builder.startObject("location");
+                                builder.field("lat", status.getGeoLocation().getLatitude());
+                                builder.field("lon", status.getGeoLocation().getLongitude());
+                                builder.endObject();
+                            }
                         }
                         if (status.getPlace() != null) {
                             builder.startObject("place");

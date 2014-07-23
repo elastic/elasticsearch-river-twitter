@@ -27,8 +27,10 @@ import org.elasticsearch.common.base.Predicate;
 import org.elasticsearch.common.joda.time.DateTime;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.env.Environment;
+import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.indices.IndexMissingException;
@@ -72,6 +74,7 @@ import static org.hamcrest.Matchers.greaterThan;
  */
 @ElasticsearchIntegrationTest.ClusterScope(
         scope = ElasticsearchIntegrationTest.Scope.SUITE,
+        numDataNodes = 1, numClientNodes = 0,
         transportClientRatio = 0.0)
 @AbstractTwitterTest.TwitterTest
 public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
@@ -323,6 +326,57 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                 }
             }
         }, 1, TimeUnit.MINUTES), is(true));
+
+        logger.info("  -> Remove river");
+        client().admin().indices().prepareDeleteMapping("_river").setType(getDbName()).get();
+    }
+
+    /**
+     * Test for #51: https://github.com/elasticsearch/elasticsearch-river-twitter/issues/51
+     */
+    @Test
+    public void testgeoAsArray() throws IOException, InterruptedException {
+        launchTest(jsonBuilder()
+            .startObject()
+                .field("type", "twitter")
+                .startObject("twitter")
+                    .startObject("filter")
+                        .field("tracks", track)
+                    .endObject()
+                    .field("geo_as_array", true)
+               .endObject()
+            .endObject(), randomIntBetween(1, 10), false);
+
+        // We wait for geo located tweets (it could take a looooong time)
+        assertThat(awaitBusy(new Predicate<Object>() {
+            public boolean apply(Object obj) {
+                try {
+                    refresh();
+                    SearchResponse response = client().prepareSearch(getDbName())
+                            .setPostFilter(
+                                    FilterBuilders.geoDistanceFilter("status.location")
+                                    .point(0, 0)
+                                    .distance(10000, DistanceUnit.KILOMETERS)
+                            )
+                            .addField("_source")
+                            .addField("location")
+                            .get();
+
+                    logger.info("  --> Search response: {}", response.toString());
+
+                    for (SearchHit hit : response.getHits().getHits()) {
+                        if (hit.field("location") != null) {
+                            // We have a location field so it must be an array containing 2 values
+                            assertThat(hit.field("location").getValues().size(), is(2));
+                            return true;
+                        }
+                    }
+                    return false;
+                } catch (IndexMissingException e) {
+                    return false;
+                }
+            }
+        }, 5, TimeUnit.MINUTES), is(true));
 
         logger.info("  -> Remove river");
         client().admin().indices().prepareDeleteMapping("_river").setType(getDbName()).get();
