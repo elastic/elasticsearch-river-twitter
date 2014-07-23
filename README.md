@@ -235,6 +235,34 @@ If you need to stop the Twitter river, you have to remove it:
 DELETE _river/my_twitter_river/
 ```
 
+Tests
+=====
+
+Integrations tests in this plugin require working Twitter account and therefore disabled by default. 
+You need to create your credentials as explained in [Prerequisites](#prerequisites).
+
+To enable tests prepare a config file `elasticsearch.yml` with the following content:
+
+```
+river:
+  twitter:
+      oauth:
+         consumer_key: "your_consumer_key"
+         consumer_secret: "your_consumer_secret"
+         access_token: "your_access_token"
+         access_token_secret: "your_access_token_secret"
+```
+
+Replace all occurrences of `your_consumer_key`, `your_consumer_secret`, `your_access_token` and 
+`your_access_token_secret` with your settings.
+
+To run test:
+
+```sh
+mvn -Dtests.twitter=true -Dtests.config=/path/to/config/file/elasticsearch.yml clean test
+```
+
+
 
 License
 -------

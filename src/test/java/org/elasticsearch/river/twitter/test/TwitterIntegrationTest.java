@@ -25,8 +25,10 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.base.Predicate;
 import org.elasticsearch.common.joda.time.DateTime;
+import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.indices.IndexMissingException;
@@ -55,7 +57,7 @@ import static org.hamcrest.Matchers.greaterThan;
  * You must have an internet access.
  *
  * Launch it using:
- * mvn test -Dtests.twitter=true -Des.config=/path/to/elasticsearch.yml
+ * mvn test -Dtests.twitter=true -Dtests.config=/path/to/elasticsearch.yml
  *
  * where your /path/to/elasticsearch.yml contains:
 
@@ -75,6 +77,21 @@ import static org.hamcrest.Matchers.greaterThan;
 public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
 
     private final String track = "obama";
+
+    @Override
+    protected Settings nodeSettings(int nodeOrdinal) {
+        ImmutableSettings.Builder settings = ImmutableSettings.builder()
+                .put(super.nodeSettings(nodeOrdinal));
+
+        Environment environment = new Environment();
+
+        // if explicit, just load it and don't load from env
+        if (Strings.hasText(System.getProperty("tests.config"))) {
+            settings.loadFromUrl(environment.resolveConfig(System.getProperty("tests.config")));
+        }
+
+        return settings.build();
+    }
 
     private String getDbName() {
         return Strings.toUnderscoreCase(getTestName());
@@ -126,7 +143,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                         .field("tracks", "le")
                         .field("language", "fr")
                     .endObject()
-               .endObject()
+                .endObject()
             .endObject(), randomIntBetween(5, 50), true);
 
         // We should have only FR data

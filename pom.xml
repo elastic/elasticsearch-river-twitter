@@ -35,7 +35,7 @@
         <twitter4j.version>3.0.5</twitter4j.version>
         <lucene.version>4.8.1</lucene.version>
         <tests.shuffle>true</tests.shuffle>
-        <tests.output>onerror</tests.output>
+        <tests.output>always</tests.output>
         <tests.client.ratio></tests.client.ratio>
         <tests.twitter>false</tests.twitter>
         <es.logger.level>INFO</es.logger.level>
@@ -215,6 +215,7 @@
                                 <tests.slow>${tests.slow}</tests.slow>
                                 <tests.awaitsfix>${tests.awaitsfix}</tests.awaitsfix>
                                 <tests.twitter>${tests.twitter}</tests.twitter>
+                                <tests.config>${tests.config}</tests.config>
                                 <tests.timeoutSuite>${tests.timeoutSuite}</tests.timeoutSuite>
                                 <tests.showSuccess>${tests.showSuccess}</tests.showSuccess>
                                 <tests.integration>${tests.integration}</tests.integration>
