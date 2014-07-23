@@ -32,7 +32,7 @@
 
     <properties>
         <elasticsearch.version>1.2.2</elasticsearch.version>
-        <twitter4j.version>3.0.5</twitter4j.version>
+        <twitter4j.version>4.0.2</twitter4j.version>
         <lucene.version>4.8.1</lucene.version>
         <tests.shuffle>true</tests.shuffle>
         <tests.output>always</tests.output>
