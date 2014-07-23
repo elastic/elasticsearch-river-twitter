@@ -32,7 +32,7 @@ public abstract class AbstractTwitterTest {
      * Annotation for tests that an internet connection and twitter credentials to run.
      * Twitter tests are disabled by default.
      * <p/>
-     * To enable test add -Dtests.twitter=true -Des.config=/path/to/elasticsearch.yml
+     * To enable test add -Dtests.twitter=true -Dtests.config=/path/to/elasticsearch.yml
      * <p/>
      * The elasticsearch.yml file should contain the following keys
      * <pre>
