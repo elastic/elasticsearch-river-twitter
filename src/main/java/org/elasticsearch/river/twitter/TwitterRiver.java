@@ -40,10 +40,8 @@ import org.elasticsearch.river.River;
 import org.elasticsearch.river.RiverName;
 import org.elasticsearch.river.RiverSettings;
 import org.elasticsearch.threadpool.ThreadPool;
-
 import twitter4j.*;
 import twitter4j.conf.ConfigurationBuilder;
-import twitter4j.json.DataObjectFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -354,9 +352,6 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         if (proxyPassword != null) cb.setHttpProxyPassword(proxyPassword);
         if (raw) cb.setJSONStoreEnabled(true);
 
-        // We force SSL usage
-        cb.setUseSSL(true);
-
         TwitterStream stream = new TwitterStreamFactory(cb.build()).getInstance();
         if (streamType.equals("user")) 
         	stream.addListener(new UserStreamHandler());
@@ -517,7 +512,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
                     // If we want to index tweets as is, we don't need to convert it to JSon doc
                     if (raw) {
-                        String rawJSON = DataObjectFactory.getRawJSON(status);
+                        String rawJSON = TwitterObjectFactory.getRawJSON(status);
                         bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(rawJSON));
                     } else {
                         XContentBuilder builder = XContentFactory.jsonBuilder().startObject();
@@ -525,7 +520,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         builder.field("created_at", status.getCreatedAt());
                         builder.field("source", status.getSource());
                         builder.field("truncated", status.isTruncated());
-                        builder.field("language", status.getIsoLanguageCode());
+                        builder.field("language", status.getLang());
 
                         if (status.getUserMentionEntities() != null) {
                             builder.startArray("mention");
