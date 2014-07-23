@@ -285,6 +285,14 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
             }
         }, 10, TimeUnit.SECONDS);
 
+        // The river could look started but it tooks actually some seconds
+        // to get twitter stream up and running. So we wait 5 seconds more.
+        awaitBusy(new Predicate<Object>() {
+            public boolean apply(Object obj) {
+                return false;
+            }
+        }, 5, TimeUnit.SECONDS);
+
         // Generate a tweet on your timeline
         // We need to read settings from elasticsearch.yml file
         Settings settings = cluster().getInstance(Settings.class);
