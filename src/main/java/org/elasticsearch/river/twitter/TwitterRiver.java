@@ -383,9 +383,23 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             return;
         }
 
-        try {
-            // We push ES mapping only if raw is false
-            if (!raw) {
+        // We push ES mapping only if raw is false
+        if (!raw) {
+            try {
+                client.admin().indices().prepareCreate(indexName).execute().actionGet();
+            } catch (Exception e) {
+                if (ExceptionsHelper.unwrapCause(e) instanceof IndexAlreadyExistsException) {
+                    // that's fine
+                } else if (ExceptionsHelper.unwrapCause(e) instanceof ClusterBlockException) {
+                    // ok, not recovered yet..., lets start indexing and hope we recover by the first bulk
+                    // TODO: a smarter logic can be to register for cluster event listener here, and only start sampling when the block is removed...
+                } else {
+                    logger.warn("failed to create index [{}], disabling river...", e, indexName);
+                    return;
+                }
+            }
+
+            try {
                 String mapping = XContentFactory.jsonBuilder().startObject().startObject(typeName).startObject("properties")
                         .startObject("location").field("type", "geo_point").endObject()
                         .startObject("language").field("type", "string").field("index", "not_analyzed").endObject()
@@ -394,17 +408,10 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         .startObject("in_reply").startObject("properties").startObject("user_screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
                         .startObject("retweet").startObject("properties").startObject("user_screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
                         .endObject().endObject().endObject().string();
-                client.admin().indices().prepareCreate(indexName).addMapping(typeName, mapping).execute().actionGet();
-            }
-        } catch (Exception e) {
-            if (ExceptionsHelper.unwrapCause(e) instanceof IndexAlreadyExistsException) {
-                // that's fine
-            } else if (ExceptionsHelper.unwrapCause(e) instanceof ClusterBlockException) {
-                // ok, not recovered yet..., lets start indexing and hope we recover by the first bulk
-                // TODO: a smarter logic can be to register for cluster event listener here, and only start sampling when the block is removed...
-            } else {
-                logger.warn("failed to create index [{}], disabling river...", e, indexName);
-                return;
+                logger.debug("Applying default mapping for [{}]/[{}]: {}", indexName, typeName, mapping);
+                client.admin().indices().preparePutMapping(indexName).setType(typeName).setSource(mapping).execute().actionGet();
+            } catch (Exception e) {
+                logger.debug("failed to apply default mapping [{}]/[{}], disabling river...", e, indexName, typeName);
             }
         }
 
