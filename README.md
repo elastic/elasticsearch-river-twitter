@@ -1,27 +1,14 @@
 Twitter River Plugin for Elasticsearch
 ==================================
 
-The Twitter River plugin allows index twitter stream using
-[Elasticsearch rivers feature](http://www.elasticsearch.org/guide/en/elasticsearch/rivers/current/index.html).
-
-In order to install the plugin, simply run: `bin/plugin -install elasticsearch/elasticsearch-river-twitter/2.0.0`.
-
-* For master elasticsearch versions, look at [master branch](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/master).
-* For 1.3.x elasticsearch versions, look at [es-1.3 branch](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/es-1.3).
-* For 1.2.x elasticsearch versions, look at [es-1.2 branch](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/es-1.2).
-* For 1.0.x elasticsearch versions, look at [es-1.0 branch](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/es-1.0).
-* For 0.90.x elasticsearch versions, look at [es-0.90 branch](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/es-0.90).
-
-|    Twitter River Plugin    |    elasticsearch    | Release date |
-|----------------------------|---------------------|:------------:|
-| 2.3.0-SNAPSHOT             | 1.3.0 -> 1.3        |  XXXX-XX-XX  |
-
-Please read documentation relative to the version you are using:
-
-* [2.3.0-SNAPSHOT](https://github.com/elasticsearch/elasticsearch-river-twitter/blob/es-1.3/README.md)
-
-The twitter river indexes the public [twitter stream](http://dev.twitter.com/pages/streaming_api), aka the hose,
+The Twitter river indexes the public [twitter stream](http://dev.twitter.com/pages/streaming_api), aka the hose,
 and makes it searchable.
+
+## Version 2.3.0-SNAPSHOT for Elasticsearch: 1.3
+
+If you are looking for another version documentation, please refer to the 
+[compatibility matrix](https://github.com/elasticsearch/elasticsearch-river-twitter/#twitter-river-plugin-for-elasticsearch).
+
 
 Prerequisites
 -------------
