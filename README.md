@@ -7,7 +7,7 @@ and makes it searchable.
 In order to install the plugin, run: 
 
 ```sh
-bin/plugin -install elasticsearch/elasticsearch-river-twitter/2.2.0
+bin/plugin -install elasticsearch/elasticsearch-river-twitter/2.3.0
 ```
 
 You need to install a version matching your Elasticsearch version:
@@ -15,7 +15,7 @@ You need to install a version matching your Elasticsearch version:
 |       Elasticsearch    | Azure Cloud Plugin|                                                             Docs                                                                   |
 |------------------------|-------------------|------------------------------------------------------------------------------------------------------------------------------------|
 |    master              | Build from source | See below                                                                                                                          |
-|    es-1.3              | Build from source | [2.3.0-SNAPSHOT](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/es-1.3/#twitter-river-plugin-for-elasticsearch) |
+|    es-1.3              |     2.3.0         | [2.3.0](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/v2.3.0/#version-230-for-elasticsearch-13)                  |
 |    es-1.2              |     2.2.0         | [2.2.0](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/v2.2.0/#twitter-river-plugin-for-elasticsearch)          |
 |    es-1.0              |     2.0.0         | [2.0.0](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/v2.0.0/#twitter-river-plugin-for-elasticsearch)          |
 |    es-0.90             |     1.5.0         | [1.5.0](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/v1.5.0/#twitter-river-plugin-for-elasticsearch)          |
