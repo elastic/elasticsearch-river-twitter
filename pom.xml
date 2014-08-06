@@ -8,7 +8,7 @@
     <version>3.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>Elasticsearch Twitter River plugin</name>
-    <description>The Twitter River plugin allows index twitter stream using elasticsearch rivers feature</description>
+    <description>The Twitter river indexes the public twitter stream, aka the hose, and makes it searchable</description>
     <url>https://github.com/elasticsearch/elasticsearch-river-twitter/</url>
     <inceptionYear>2009</inceptionYear>
     <licenses>
