@@ -12,7 +12,7 @@ bin/plugin -install elasticsearch/elasticsearch-river-twitter/2.3.0
 
 You need to install a version matching your Elasticsearch version:
 
-|       Elasticsearch    | Azure Cloud Plugin|                                                             Docs                                                                   |
+|       Elasticsearch    |Twitter River Plugin|                                                            Docs                                                                   |
 |------------------------|-------------------|------------------------------------------------------------------------------------------------------------------------------------|
 |    master              | Build from source | See below                                                                                                                          |
 |    es-1.x              | Build from source | [2.4.0-SNAPSHOT](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/es-1.x/#version-240-snapshot-for-elasticsearch-1x)                  |
