@@ -34,7 +34,7 @@
         <elasticsearch.version>1.5.0-SNAPSHOT</elasticsearch.version>
         <twitter4j.version>4.0.2</twitter4j.version>
         <lucene.version>4.10.1</lucene.version>
-        <lucene.maven.version>4.10.1-snapshot-1627368</lucene.maven.version>
+        <lucene.maven.version>4.10.1</lucene.maven.version>
         <tests.shuffle>true</tests.shuffle>
         <tests.output>always</tests.output>
         <tests.client.ratio></tests.client.ratio>
@@ -43,10 +43,6 @@
     </properties>
 
     <repositories>
-        <repository>
-            <id>Lucene snapshots</id>
-            <url>https://download.elasticsearch.org/lucenesnapshots/</url>
-        </repository>
         <repository>
             <id>sonatype</id>
             <url>http://oss.sonatype.org/content/repositories/releases/</url>
