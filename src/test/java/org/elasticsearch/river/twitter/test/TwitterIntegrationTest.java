@@ -312,7 +312,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                 settings.get("river.twitter.oauth.consumer_secret"));
         twitter.setOAuthAccessToken(accessToken);
 
-        Status status = twitter.updateStatus("testing elasticsearch twitter river. Please ignore. " +
+        Status status = twitter.updateStatus("testing twitter river. Please ignore. " +
                         DateTime.now().toString());
         logger.info("  -> tweet [{}] sent: [{}]", status.getId(), status.getText());
 
