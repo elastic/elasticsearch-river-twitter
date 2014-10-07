@@ -259,6 +259,24 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                 .endObject(), 1, true);
     }
 
+    /**
+     * Tracking twitter lists and Zonal_Marking/Guardian100FootballBlogs,Zonal_Marking/football-journalists-3
+     */
+    @Test
+    public void testFollowList() throws IOException, InterruptedException {
+        launchTest(jsonBuilder()
+                .startObject()
+                    .field("type", "twitter")
+                    .startObject("twitter")
+                        .startObject("filter")
+                            .field("user_lists", "Zonal_Marking/Guardian100FootballBlogs,Zonal_Marking/football-journalists-3")
+                        .endObject()
+                    .endObject()
+                    .startObject("index")
+                        .field("bulk_size", 1)
+                    .endObject()
+                .endObject(), 1, true);
+    }
     @Test
     public void testTracks() throws IOException, InterruptedException {
         launchTest(jsonBuilder()

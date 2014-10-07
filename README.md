@@ -109,8 +109,10 @@ Filtered Stream
 ===============
 
 Filtered stream can also be supported (as per the twitter stream API). Filter stream can be configured to
-support `tracks`, `follow`, `locations` and `language`. The configuration is the same as the twitter API (a single comma
-separated string value, or using json arrays). Here is an example:
+support `tracks`, `follow`, `locations` and `language`. `user_lists` is a shortcut to follow all members of a public 
+twitter list identified by the user id and the list slug (last part of uri when open a list in your browser). The 
+configuration is the same as the twitter API (a single comma separated string value, or using json arrays). 
+Here is an example:
 
 ```
 PUT _river/my_twitter_river/_meta
@@ -120,6 +122,7 @@ PUT _river/my_twitter_river/_meta
         "filter" : {
             "tracks" : "test,something,please",
             "follow" : "111,222,333",
+            "user_lists" : "ownerScreenName1/slug1,ownerScreenName2/slug2",
             "locations" : "-122.75,36.8,-121.75,37.8,-74,40,-73,41",
             "language" : "fr,en"
         }
