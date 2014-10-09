@@ -259,24 +259,25 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                     filterSet = true;
                 }
 
+                // We should have something to filter
+                if (!filterSet) {
+                    streamType = null;
+                    indexName = null;
+                    typeName = "status";
+                    bulkSize = 100;
+                    this.maxConcurrentBulk = 1;
+                    this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
+                    logger.warn("can not set language filter without tracks, follow, locations or user_lists. Disabling river.");
+                    return;
+                }
+
                 Object language = filterSettings.get("language");
                 if (language != null) {
-                    if (filterSet) {
-                        if (language instanceof List) {
-                            List<String> lLanguage = (List<String>) language;
-                            filterQuery.language(lLanguage.toArray(new String[lLanguage.size()]));
-                        } else {
-                            filterQuery.language(Strings.commaDelimitedListToStringArray(language.toString()));
-                        }
+                    if (language instanceof List) {
+                        List<String> lLanguage = (List<String>) language;
+                        filterQuery.language(lLanguage.toArray(new String[lLanguage.size()]));
                     } else {
-                        streamType = null;
-                        indexName = null;
-                        typeName = "status";
-                        bulkSize = 100;
-                        this.maxConcurrentBulk = 1;
-                        this.bulkFlushInterval = TimeValue.timeValueSeconds(5);
-                        logger.warn("can not set language filter without tracks, follow or locations. Disabling river.");
-                        return;
+                        filterQuery.language(Strings.commaDelimitedListToStringArray(language.toString()));
                     }
                 }
             } else {
