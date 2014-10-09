@@ -140,10 +140,11 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 proxyUser = XContentMapValues.nodeStringValue(proxy.get("user"), null);
                 proxyPassword = XContentMapValues.nodeStringValue(proxy.get("password"), null);
             } else {
-                proxyHost = null;
-                proxyPort = null;
-                proxyUser = null;
-                proxyPassword =null;
+                // Let's see if we have that in node settings
+                proxyHost = settings.get("river.twitter.proxy.host");
+                proxyPort = settings.get("river.twitter.proxy.port");
+                proxyUser = settings.get("river.twitter.proxy.user");
+                proxyPassword = settings.get("river.twitter.proxy.password");
             }
 
             riverStreamType = XContentMapValues.nodeStringValue(twitterSettings.get("type"), "sample");

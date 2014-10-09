@@ -278,6 +278,15 @@ PUT _river/my_twitter_river/_meta
 }
 ```
 
+You can also define proxy settings in `elasticsearch.yml`file on each node by prefixing setting with `river.twitter.`:
+                                                         
+```yaml
+river.twitter.proxy.host: "host"
+river.twitter.proxy.port: "port"
+river.twitter.proxy.user: "proxy_user_if_any"
+river.twitter.proxy.password: "proxy_password_if_any"
+```
+
 Tests
 =====
 
