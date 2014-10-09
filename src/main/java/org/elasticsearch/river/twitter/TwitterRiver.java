@@ -630,7 +630,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         builder.endObject();
 
                         builder.endObject();
-                        bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).create(true).source(builder));
+                        bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).source(builder));
                     }
                 }
 
