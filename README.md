@@ -238,6 +238,26 @@ If you need to stop the Twitter river, you have to remove it:
 DELETE _river/my_twitter_river/
 ```
 
+Using a proxy
+=============
+
+You can define a proxy if you are using one:
+
+```
+PUT _river/my_twitter_river/_meta
+{
+    "type" : "twitter",
+    "twitter" : {
+        "proxy" : {
+            "host": "host",
+            "port": "port",
+            "user": "proxy_user_if_any",
+            "password": "proxy_password_if_any"
+        }
+    }
+}
+```
+
 Tests
 =====
 
