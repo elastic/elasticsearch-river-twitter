@@ -39,7 +39,9 @@ import org.elasticsearch.river.twitter.test.helper.HttpClient;
 import org.elasticsearch.river.twitter.test.helper.HttpClientResponse;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import twitter4j.Status;
 import twitter4j.Twitter;
@@ -50,6 +52,8 @@ import twitter4j.auth.AccessToken;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_REPLICAS;
+import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_SHARDS;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.Matchers.equalTo;
@@ -75,7 +79,6 @@ import static org.hamcrest.Matchers.greaterThan;
  */
 @ElasticsearchIntegrationTest.ClusterScope(
         scope = ElasticsearchIntegrationTest.Scope.SUITE,
-        numDataNodes = 1, numClientNodes = 0,
         transportClientRatio = 0.0)
 @AbstractTwitterTest.TwitterTest
 public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
@@ -96,6 +99,27 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
         }
 
         return settings.build();
+    }
+
+    @Before
+    public void createEmptyRiverIndex() {
+        // We want to force _river index to use 1 shard 1 replica
+        client().admin().indices().prepareCreate("_river").setSettings(ImmutableSettings.builder()
+                .put(SETTING_NUMBER_OF_SHARDS, 1)
+                .put(SETTING_NUMBER_OF_REPLICAS, 0)).get();
+    }
+
+    @After
+    public void deleteRiverAndWait() throws InterruptedException {
+        logger.info(" --> remove all twitter rivers");
+        client().admin().indices().prepareDelete("_river").get();
+        // We just wait a few to make sure that all bulks has been processed
+        awaitBusy(new Predicate<Object>() {
+            @Override
+            public boolean apply(Object o) {
+                return false;
+            }
+        }, 2, TimeUnit.SECONDS);
     }
 
     private String getDbName() {
