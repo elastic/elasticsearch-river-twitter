@@ -484,7 +484,9 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         bulkProcessor.close();
 
         if (stream != null) {
-            stream.cleanUp();
+            // No need to call stream.cleanUp():
+            // - since it is done by the implementation of shutdown()
+            // - it will lead to a thread leak (see TwitterStreamImpl.cleanUp() and TwitterStreamImpl.shutdown() )
             stream.shutdown();
         }
     }
