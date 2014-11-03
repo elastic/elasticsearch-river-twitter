@@ -111,15 +111,15 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
 
     @After
     public void deleteRiverAndWait() throws InterruptedException {
-        logger.info(" --> remove all twitter rivers");
-        client().admin().indices().prepareDelete("_river").get();
-        // We just wait a few to make sure that all bulks has been processed
-        awaitBusy(new Predicate<Object>() {
-            @Override
-            public boolean apply(Object o) {
-                return false;
+        logger.info(" --> delete all");
+        client().admin().indices().prepareDelete("_all").get();
+
+        assertThat(awaitBusy(new Predicate<Object>() {
+            public boolean apply(Object obj) {
+                CountResponse response = client().prepareCount().get();
+                return response.getCount() == 0;
             }
-        }, 2, TimeUnit.SECONDS);
+        }, 20, TimeUnit.SECONDS), equalTo(true));
     }
 
     private String getDbName() {
