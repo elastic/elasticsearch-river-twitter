@@ -291,7 +291,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
 
         // We should have only FR data
         SearchResponse response = client().prepareSearch(getDbName())
-                .setQuery(QueryBuilders.queryString(track))
+                .setQuery(QueryBuilders.queryStringQuery(track))
                 .get();
 
         logger.info("  --> Search response: {}", response.toString());
