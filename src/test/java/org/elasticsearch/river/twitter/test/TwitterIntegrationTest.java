@@ -374,7 +374,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
             .endObject(), randomIntBetween(1, 10), false);
 
         // We wait for geo located tweets (it could take a looooong time)
-        assertThat(awaitBusy(new Predicate<Object>() {
+        if (!awaitBusy(new Predicate<Object>() {
             public boolean apply(Object obj) {
                 try {
                     refresh();
@@ -402,7 +402,9 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                     return false;
                 }
             }
-        }, 5, TimeUnit.MINUTES), is(true));
+        }, 5, TimeUnit.MINUTES)) {
+            logger.warn("  -> We did not manage to get a geo localized tweet within 5 minutes. :(");
+        }
 
         logger.info("  -> Remove river");
         client().admin().indices().prepareDeleteMapping("_river").setType(getDbName()).get();
