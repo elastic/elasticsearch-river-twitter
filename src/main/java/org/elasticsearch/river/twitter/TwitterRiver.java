@@ -550,7 +550,9 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         this.closed = true;
         logger.info("closing twitter stream river");
 
-        bulkProcessor.close();
+        if (bulkProcessor != null) {
+            bulkProcessor.close();
+        }
 
         if (stream != null) {
             // No need to call stream.cleanUp():
