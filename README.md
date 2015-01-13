@@ -10,6 +10,8 @@ In order to install the plugin, run:
 bin/plugin -install elasticsearch/elasticsearch-river-twitter/2.4.1
 ```
 
+After installing the plugin you need to restart elasticsearch.
+
 You need to install a version matching your Elasticsearch version:
 
 |       Elasticsearch    |Twitter River Plugin|                                                            Docs                                                                   |
