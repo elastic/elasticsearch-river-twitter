@@ -292,6 +292,54 @@ river.twitter.proxy.user: "proxy_user_if_any"
 river.twitter.proxy.password: "proxy_password_if_any"
 ```
 
+Sample document
+===============
+
+Here is how a document could look like when using this river (without `raw` option):
+
+```js
+{
+   "text":"This is a text",
+   "created_at":"2015-01-26T15:22:35.000Z",
+   "source":"<a href=\"http://www.twitter.com\" rel=\"nofollow\">Twitter for Windows Phone</a>",
+   "truncated":false,
+   "language":"en",
+   "mention":[
+
+   ],
+   "retweet_count":0,
+   "hashtag":[
+
+   ],
+   "location":[
+      78.418407,
+      17.431913
+   ],
+   "place":{
+      "id":"243cc16f6417a167",
+      "name":"Hyderabad",
+      "type":"city",
+      "full_name":"Hyderabad, Andhra Pradesh",
+      "street_address":null,
+      "country":"India",
+      "country_code":"IN",
+      "url":"https://api.twitter.com/1.1/geo/id/243cc16f6417a167.json"
+   },
+   "link":[
+
+   ],
+   "user":{
+      "id":1111111111,
+      "name":"User Name",
+      "screen_name":"twitter_handle",
+      "location":"A full text location description",
+      "description":"A description",
+      "profile_image_url":"http://pbs.twimg.com/profile_images/1111111111/QATJ00Yp_normal.jpeg",
+      "profile_image_url_https":"https://pbs.twimg.com/profile_images/1111111111/QATJ00Yp_normal.jpeg"
+   }
+}
+```
+
 Tests
 =====
 
