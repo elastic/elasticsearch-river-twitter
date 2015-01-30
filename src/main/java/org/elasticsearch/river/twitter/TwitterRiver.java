@@ -62,6 +62,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     private final String oauthAccessToken;
     private final String oauthAccessTokenSecret;
 
+    private final TimeValue retryAfter;
+
     private final String proxyHost;
     private final String proxyPort;
     private final String proxyUser;
@@ -133,6 +135,12 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                 oauthConsumerSecret = settings.get("river.twitter.oauth.consumer_secret");
                 oauthAccessToken = settings.get("river.twitter.oauth.access_token");
                 oauthAccessTokenSecret = settings.get("river.twitter.oauth.access_token_secret");
+            }
+
+            if (twitterSettings.containsKey("retry_after")) {
+                retryAfter = XContentMapValues.nodeTimeValue(twitterSettings.get("retry_after"), TimeValue.timeValueSeconds(10));
+            } else {
+                retryAfter = XContentMapValues.nodeTimeValue(settings.get("river.twitter.retry_after"), TimeValue.timeValueSeconds(10));
             }
 
             if (twitterSettings.containsKey("proxy")) {
@@ -293,6 +301,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             oauthConsumerSecret = settings.get("river.twitter.oauth.consumer_secret");
             oauthAccessToken = settings.get("river.twitter.oauth.access_token");
             oauthAccessTokenSecret = settings.get("river.twitter.oauth.access_token_secret");
+            retryAfter = XContentMapValues.nodeTimeValue(settings.get("river.twitter.retry_after"), TimeValue.timeValueSeconds(10));
             filterQuery = null;
             proxyHost = null;
             proxyPort = null;
@@ -574,7 +583,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             }
             // TODO, we can update the status of the river to RECONNECT
             logger.warn("failed to connect after failure, throttling", e);
-            threadPool.schedule(TimeValue.timeValueSeconds(10), ThreadPool.Names.GENERIC, new Runnable() {
+            threadPool.schedule(retryAfter, ThreadPool.Names.GENERIC, new Runnable() {
                 @Override
                 public void run() {
                     reconnect();
