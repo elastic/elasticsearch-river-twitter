@@ -317,6 +317,18 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
     }
 
     @Test
+    public void testRetryAfter() throws IOException, InterruptedException {
+        launchTest(jsonBuilder()
+            .startObject()
+                .field("type", "twitter")
+                .startObject("twitter")
+                    .field("type", "sample")
+                    .field("retry_after", "10s")
+               .endObject()
+            .endObject(), randomIntBetween(10, 200), true);
+    }
+
+    @Test
     public void testUserStream() throws IOException, InterruptedException, TwitterException {
         launchTest(jsonBuilder()
             .startObject()
