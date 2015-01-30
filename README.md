@@ -66,7 +66,8 @@ PUT _river/my_twitter_river/_meta
         "index" : "my_twitter_river",
         "type" : "status",
         "bulk_size" : 100,
-        "flush_interval" : "5s"
+        "flush_interval" : "5s",
+        "retry_after" : "10s"
     }
 }
 ```
@@ -234,6 +235,22 @@ PUT _river/my_twitter_river/_meta
     "type" : "twitter",
     "twitter" : {
         "ignore_retweet" : true
+    }
+}
+```
+
+Increase the schedule time to reconnect the river
+=================================================
+
+It can happen that the river fails, thus closing the current connection to the Streaming API. Then, a new connection is scheduled by the river after 10s by default.
+If you want to manage this time, simply use the `retry_after` option, as in:
+
+```
+PUT _river/my_twitter_river/_meta
+{
+    "type" : "twitter",
+    "index" : {
+        "retry_after" : "30s"
     }
 }
 ```
