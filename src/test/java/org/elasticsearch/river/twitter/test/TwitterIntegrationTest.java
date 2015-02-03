@@ -21,6 +21,7 @@ package org.elasticsearch.river.twitter.test;
 
 import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.base.Predicate;
@@ -150,6 +151,8 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                     logger.info("  -> got {} docs in {} index", response.getCount(), getDbName());
                     return response.getCount() >= numDocs;
                 } catch (IndexMissingException e) {
+                    return false;
+                } catch (SearchPhaseExecutionException e) {
                     return false;
                 }
             }
