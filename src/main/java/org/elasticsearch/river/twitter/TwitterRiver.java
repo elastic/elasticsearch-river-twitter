@@ -83,17 +83,17 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     private final String streamType;
 
+    private RiverStatus riverStatus;
 
     private volatile TwitterStream stream;
 
     private volatile BulkProcessor bulkProcessor;
 
-    private volatile boolean closed = false;
-
     @SuppressWarnings({"unchecked"})
     @Inject
     public TwitterRiver(RiverName riverName, RiverSettings riverSettings, Client client, ThreadPool threadPool, Settings settings) {
         super(riverName, riverSettings);
+        this.riverStatus = RiverStatus.UNKNOWN;
         this.client = client;
         this.threadPool = threadPool;
 
@@ -334,8 +334,9 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         }
 
         streamType = riverStreamType;
-        stream = buildTwitterStream();
+        this.riverStatus = RiverStatus.INITIALIZED;
     }
+
     /**
      * Get users id of each list to stream them.
      * @param tUserlists List of user list. Should be a public list.
@@ -383,7 +384,7 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
      * @return
      */
     private Configuration buildTwitterConfiguration() {
-        logger.debug("creating TwitterConfigurationBuilder");
+        logger.debug("creating twitter configuration");
         ConfigurationBuilder cb = new ConfigurationBuilder();
 
         cb.setOAuthConsumerKey(oauthConsumerKey)
@@ -396,25 +397,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         if (proxyUser != null) cb.setHttpProxyUser(proxyUser);
         if (proxyPassword != null) cb.setHttpProxyPassword(proxyPassword);
         if (raw) cb.setJSONStoreEnabled(true);
+        logger.debug("twitter configuration created");
         return cb.build();
-
-    }
-
-    /**
-     * Twitter Stream Builder
-     * @return
-     */
-    private TwitterStream buildTwitterStream() {
-        logger.debug("creating TwitterStreamFactory");
-
-
-        TwitterStream stream = new TwitterStreamFactory(buildTwitterConfiguration()).getInstance();
-        if (streamType.equals("user")) 
-        	stream.addListener(new UserStreamHandler());
-        else 
-        	stream.addListener(new StatusHandler());
-
-        return stream;
     }
 
     /**
@@ -422,124 +406,169 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
      */
     private void startTwitterStream() {
         logger.info("starting {} twitter stream", streamType);
-        if (streamType.equals("filter") || filterQuery != null) {
-            stream.filter(filterQuery);
-        } else if (streamType.equals("firehose")) {
-            stream.firehose(0);
-        } else if (streamType.equals("user")) {
-        	stream.user();
-        } else {
-            stream.sample();
+
+        if (stream == null) {
+            logger.debug("creating twitter stream");
+
+            stream = new TwitterStreamFactory(buildTwitterConfiguration()).getInstance();
+            if (streamType.equals("user")) {
+                stream.addListener(new UserStreamHandler());
+            } else {
+                stream.addListener(new StatusHandler());
+            }
+
+            logger.debug("twitter stream created");
         }
+
+        if (riverStatus != RiverStatus.STOPPED && riverStatus != RiverStatus.STOPPING) {
+            if (streamType.equals("filter") || filterQuery != null) {
+                stream.filter(filterQuery);
+            } else if (streamType.equals("firehose")) {
+                stream.firehose(0);
+            } else if (streamType.equals("user")) {
+                stream.user();
+            } else {
+                stream.sample();
+            }
+        }
+        logger.debug("{} twitter stream started!", streamType);
     }
 
     @Override
     public void start() {
-        if (stream == null) {
-            return;
-        }
-
-        // We push ES mapping only if raw is false
-        if (!raw) {
-            try {
-                logger.debug("Trying to create index [{}]", indexName);
-                client.admin().indices().prepareCreate(indexName).execute().actionGet();
-            } catch (Exception e) {
-                if (ExceptionsHelper.unwrapCause(e) instanceof IndexAlreadyExistsException) {
-                    // that's fine
-                    logger.debug("Index [{}] already exists, skipping...", indexName);
-                } else if (ExceptionsHelper.unwrapCause(e) instanceof ClusterBlockException) {
-                    // ok, not recovered yet..., lets start indexing and hope we recover by the first bulk
-                    // TODO: a smarter logic can be to register for cluster event listener here, and only start sampling when the block is removed...
-                    logger.debug("Cluster is blocked for now. Index [{}] can not be created, skipping...", indexName);
-                } else {
-                    logger.warn("failed to create index [{}], disabling river...", e, indexName);
-                    return;
-                }
-            }
-
-            if (client.admin().indices().prepareGetMappings(indexName).setTypes(typeName).get().getMappings().isEmpty()) {
-                try {
-                    String mapping = XContentFactory.jsonBuilder().startObject().startObject(typeName).startObject("properties")
-                            .startObject("location").field("type", "geo_point").endObject()
-                            .startObject("language").field("type", "string").field("index", "not_analyzed").endObject()
-                            .startObject("user").startObject("properties").startObject("screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
-                            .startObject("mention").startObject("properties").startObject("screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
-                            .startObject("in_reply").startObject("properties").startObject("user_screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
-                            .startObject("retweet").startObject("properties").startObject("user_screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
-                            .endObject().endObject().endObject().string();
-                    logger.debug("Applying default mapping for [{}]/[{}]: {}", indexName, typeName, mapping);
-                    client.admin().indices().preparePutMapping(indexName).setType(typeName).setSource(mapping).execute().actionGet();
-                } catch (Exception e) {
-                    logger.warn("failed to apply default mapping [{}]/[{}], disabling river...", e, indexName, typeName);
-                    return;
-                }
-            } else {
-                logger.debug("Mapping already exists for [{}]/[{}], skipping...", indexName, typeName);
-            }
-        }
-
-        // Creating bulk processor
-        this.bulkProcessor = BulkProcessor.builder(client, new BulkProcessor.Listener() {
+        this.riverStatus = RiverStatus.STARTING;
+        // Let's start this in another thread so we won't stop the start process
+        threadPool.generic().execute(new Runnable() {
             @Override
-            public void beforeBulk(long executionId, BulkRequest request) {
-                logger.debug("Going to execute new bulk composed of {} actions", request.numberOfActions());
-            }
+            public void run() {
+                if (riverStatus != RiverStatus.STOPPED && riverStatus != RiverStatus.STOPPING) {
+                    // We are first waiting for a yellow state at least
+                    logger.debug("waiting for yellow status");
+                    client.admin().cluster().prepareHealth("_river").setWaitForYellowStatus().get();
+                    logger.debug("yellow or green status received");
+                }
 
-            @Override
-            public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
-                logger.debug("Executed bulk composed of {} actions", request.numberOfActions());
-                if (response.hasFailures()) {
-                    logger.warn("There was failures while executing bulk", response.buildFailureMessage());
-                    if (logger.isDebugEnabled()) {
-                        for (BulkItemResponse item : response.getItems()) {
-                            if (item.isFailed()) {
-                                logger.debug("Error for {}/{}/{} for {} operation: {}", item.getIndex(),
-                                        item.getType(), item.getId(), item.getOpType(), item.getFailureMessage());
+                if (riverStatus != RiverStatus.STOPPED && riverStatus != RiverStatus.STOPPING) {
+                    // We push ES mapping only if raw is false
+                    if (!raw) {
+                        try {
+                            logger.debug("Trying to create index [{}]", indexName);
+                            client.admin().indices().prepareCreate(indexName).execute().actionGet();
+                            logger.debug("index created [{}]", indexName);
+                        } catch (Exception e) {
+                            if (ExceptionsHelper.unwrapCause(e) instanceof IndexAlreadyExistsException) {
+                                // that's fine
+                                logger.debug("Index [{}] already exists, skipping...", indexName);
+                            } else if (ExceptionsHelper.unwrapCause(e) instanceof ClusterBlockException) {
+                                // ok, not recovered yet..., lets start indexing and hope we recover by the first bulk
+                                // TODO: a smarter logic can be to register for cluster event listener here, and only start sampling when the block is removed...
+                                logger.debug("Cluster is blocked for now. Index [{}] can not be created, skipping...", indexName);
+                            } else {
+                                logger.warn("failed to create index [{}], disabling river...", e, indexName);
+                                riverStatus = RiverStatus.STOPPED;
+                                return;
                             }
+                        }
+
+                        if (client.admin().indices().prepareGetMappings(indexName).setTypes(typeName).get().getMappings().isEmpty()) {
+                            try {
+                                String mapping = XContentFactory.jsonBuilder().startObject().startObject(typeName).startObject("properties")
+                                        .startObject("location").field("type", "geo_point").endObject()
+                                        .startObject("language").field("type", "string").field("index", "not_analyzed").endObject()
+                                        .startObject("user").startObject("properties").startObject("screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
+                                        .startObject("mention").startObject("properties").startObject("screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
+                                        .startObject("in_reply").startObject("properties").startObject("user_screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
+                                        .startObject("retweet").startObject("properties").startObject("user_screen_name").field("type", "string").field("index", "not_analyzed").endObject().endObject().endObject()
+                                        .endObject().endObject().endObject().string();
+                                logger.debug("Applying default mapping for [{}]/[{}]: {}", indexName, typeName, mapping);
+                                client.admin().indices().preparePutMapping(indexName).setType(typeName).setSource(mapping).execute().actionGet();
+                            } catch (Exception e) {
+                                logger.warn("failed to apply default mapping [{}]/[{}], disabling river...", e, indexName, typeName);
+                                return;
+                            }
+                        } else {
+                            logger.debug("Mapping already exists for [{}]/[{}], skipping...", indexName, typeName);
                         }
                     }
                 }
-            }
 
-            @Override
-            public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-                logger.warn("Error executing bulk", failure);
-            }
-        })
-                .setBulkActions(bulkSize)
-                .setConcurrentRequests(maxConcurrentBulk)
-                .setFlushInterval(bulkFlushInterval)
-                .build();
+                // Creating bulk processor
+                logger.debug("creating bulk processor [{}]", indexName);
+                bulkProcessor = BulkProcessor.builder(client, new BulkProcessor.Listener() {
+                    @Override
+                    public void beforeBulk(long executionId, BulkRequest request) {
+                        logger.debug("Going to execute new bulk composed of {} actions", request.numberOfActions());
+                    }
 
-        logger.debug("Bulk processor created with bulkSize [{}], bulkFlushInterval [{}]", bulkSize, bulkFlushInterval);
-        startTwitterStream();
+                    @Override
+                    public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
+                        logger.debug("Executed bulk composed of {} actions", request.numberOfActions());
+                        if (response.hasFailures()) {
+                            logger.warn("There was failures while executing bulk", response.buildFailureMessage());
+                            if (logger.isDebugEnabled()) {
+                                for (BulkItemResponse item : response.getItems()) {
+                                    if (item.isFailed()) {
+                                        logger.debug("Error for {}/{}/{} for {} operation: {}", item.getIndex(),
+                                                item.getType(), item.getId(), item.getOpType(), item.getFailureMessage());
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
+                        logger.warn("Error executing bulk", failure);
+                    }
+                })
+                        .setBulkActions(bulkSize)
+                        .setConcurrentRequests(maxConcurrentBulk)
+                        .setFlushInterval(bulkFlushInterval)
+                    .build();
+
+                logger.debug("Bulk processor created with bulkSize [{}], bulkFlushInterval [{}]", bulkSize, bulkFlushInterval);
+                if (riverStatus != RiverStatus.STOPPED && riverStatus != RiverStatus.STOPPING) {
+                    startTwitterStream();
+                    riverStatus = RiverStatus.RUNNING;
+                }
+            }
+        });
     }
 
     private void reconnect() {
-        if (closed) {
+        if (riverStatus == RiverStatus.STOPPING || riverStatus == RiverStatus.STOPPED ) {
             logger.debug("can not reconnect twitter on a closed river");
             return;
         }
-        try {
-            stream.cleanUp();
-        } catch (Exception e) {
-            logger.debug("failed to cleanup after failure", e);
+
+        riverStatus = RiverStatus.STARTING;
+
+        if (stream != null) {
+            try {
+                logger.debug("cleanup stream");
+                stream.cleanUp();
+            } catch (Exception e) {
+                logger.debug("failed to cleanup after failure", e);
+            }
+            try {
+                logger.debug("shutdown stream");
+                stream.shutdown();
+            } catch (Exception e) {
+                logger.debug("failed to shutdown after failure", e);
+            }
         }
-        try {
-            stream.shutdown();
-        } catch (Exception e) {
-            logger.debug("failed to shutdown after failure", e);
-        }
-        if (closed) {
+
+        if (riverStatus == RiverStatus.STOPPING || riverStatus == RiverStatus.STOPPED ) {
+            logger.debug("can not reconnect twitter on a closed river");
             return;
         }
 
         try {
-            stream = buildTwitterStream();
             startTwitterStream();
+            riverStatus = RiverStatus.RUNNING;
         } catch (Exception e) {
-            if (closed) {
+            if (riverStatus == RiverStatus.STOPPING || riverStatus == RiverStatus.STOPPED ) {
+                logger.debug("river is closing. we won't reconnect.");
                 close();
                 return;
             }
@@ -556,7 +585,8 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 
     @Override
     public void close() {
-        this.closed = true;
+        riverStatus = RiverStatus.STOPPING;
+
         logger.info("closing twitter stream river");
 
         bulkProcessor.close();
@@ -567,162 +597,176 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
             // - it will lead to a thread leak (see TwitterStreamImpl.cleanUp() and TwitterStreamImpl.shutdown() )
             stream.shutdown();
         }
+
+        riverStatus = RiverStatus.STOPPED;
     }
 
     private class StatusHandler extends StatusAdapter {
 
         @Override
         public void onStatus(Status status) {
-            try {
-                // #24: We want to ignore retweets (default to false) https://github.com/elasticsearch/elasticsearch-river-twitter/issues/24
-                if (status.isRetweet() && ignoreRetweet) {
-                    if (logger.isTraceEnabled()) {
-                        logger.trace("ignoring status cause retweet {} : {}", status.getUser().getName(), status.getText());
-                    }
-                } else {
-                    if (logger.isTraceEnabled()) {
-                        logger.trace("status {} : {}", status.getUser().getName(), status.getText());
-                    }
-
-                    // If we want to index tweets as is, we don't need to convert it to JSon doc
-                    if (raw) {
-                        String rawJSON = TwitterObjectFactory.getRawJSON(status);
-                        bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).source(rawJSON));
+            if (riverStatus != RiverStatus.STOPPED && riverStatus != RiverStatus.STOPPING) {
+                try {
+                    // #24: We want to ignore retweets (default to false) https://github.com/elasticsearch/elasticsearch-river-twitter/issues/24
+                    if (status.isRetweet() && ignoreRetweet) {
+                        if (logger.isTraceEnabled()) {
+                            logger.trace("ignoring status cause retweet {} : {}", status.getUser().getName(), status.getText());
+                        }
                     } else {
-                        XContentBuilder builder = XContentFactory.jsonBuilder().startObject();
-                        builder.field("text", status.getText());
-                        builder.field("created_at", status.getCreatedAt());
-                        builder.field("source", status.getSource());
-                        builder.field("truncated", status.isTruncated());
-                        builder.field("language", status.getLang());
-
-                        if (status.getUserMentionEntities() != null) {
-                            builder.startArray("mention");
-                            for (UserMentionEntity user : status.getUserMentionEntities()) {
-                                builder.startObject();
-                                builder.field("id", user.getId());
-                                builder.field("name", user.getName());
-                                builder.field("screen_name", user.getScreenName());
-                                builder.field("start", user.getStart());
-                                builder.field("end", user.getEnd());
-                                builder.endObject();
-                            }
-                            builder.endArray();
+                        if (logger.isTraceEnabled()) {
+                            logger.trace("status {} : {}", status.getUser().getName(), status.getText());
                         }
 
-                        if (status.getRetweetCount() != -1) {
-                            builder.field("retweet_count", status.getRetweetCount());
-                        }
+                        // If we want to index tweets as is, we don't need to convert it to JSon doc
+                        if (raw) {
+                            String rawJSON = TwitterObjectFactory.getRawJSON(status);
+                            if (riverStatus != RiverStatus.STOPPED && riverStatus != RiverStatus.STOPPING) {
+                                bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).source(rawJSON));
+                            }
+                        } else {
+                            XContentBuilder builder = XContentFactory.jsonBuilder().startObject();
+                            builder.field("text", status.getText());
+                            builder.field("created_at", status.getCreatedAt());
+                            builder.field("source", status.getSource());
+                            builder.field("truncated", status.isTruncated());
+                            builder.field("language", status.getLang());
 
-                        if (status.isRetweet() && status.getRetweetedStatus() != null) {
-                            builder.startObject("retweet");
-                            builder.field("id", status.getRetweetedStatus().getId());
-                            if (status.getRetweetedStatus().getUser() != null) {
-                                builder.field("user_id", status.getRetweetedStatus().getUser().getId());
-                                builder.field("user_screen_name", status.getRetweetedStatus().getUser().getScreenName());
-                                if (status.getRetweetedStatus().getRetweetCount() != -1) {
-                                    builder.field("retweet_count", status.getRetweetedStatus().getRetweetCount());
-                                }
-                            }
-                            builder.endObject();
-                        }
-
-                        if (status.getInReplyToStatusId() != -1) {
-                            builder.startObject("in_reply");
-                            builder.field("status", status.getInReplyToStatusId());
-                            if (status.getInReplyToUserId() != -1) {
-                                builder.field("user_id", status.getInReplyToUserId());
-                                builder.field("user_screen_name", status.getInReplyToScreenName());
-                            }
-                            builder.endObject();
-                        }
-
-                        if (status.getHashtagEntities() != null) {
-                            builder.startArray("hashtag");
-                            for (HashtagEntity hashtag : status.getHashtagEntities()) {
-                                builder.startObject();
-                                builder.field("text", hashtag.getText());
-                                builder.field("start", hashtag.getStart());
-                                builder.field("end", hashtag.getEnd());
-                                builder.endObject();
-                            }
-                            builder.endArray();
-                        }
-                        if (status.getContributors() != null && status.getContributors().length > 0) {
-                            builder.array("contributor", status.getContributors());
-                        }
-                        if (status.getGeoLocation() != null) {
-                            if (geoAsArray) {
-                                builder.startArray("location");
-                                builder.value(status.getGeoLocation().getLongitude());
-                                builder.value(status.getGeoLocation().getLatitude());
-                                builder.endArray();
-                            } else {
-                                builder.startObject("location");
-                                builder.field("lat", status.getGeoLocation().getLatitude());
-                                builder.field("lon", status.getGeoLocation().getLongitude());
-                                builder.endObject();
-                            }
-                        }
-                        if (status.getPlace() != null) {
-                            builder.startObject("place");
-                            builder.field("id", status.getPlace().getId());
-                            builder.field("name", status.getPlace().getName());
-                            builder.field("type", status.getPlace().getPlaceType());
-                            builder.field("full_name", status.getPlace().getFullName());
-                            builder.field("street_address", status.getPlace().getStreetAddress());
-                            builder.field("country", status.getPlace().getCountry());
-                            builder.field("country_code", status.getPlace().getCountryCode());
-                            builder.field("url", status.getPlace().getURL());
-                            builder.endObject();
-                        }
-                        if (status.getURLEntities() != null) {
-                            builder.startArray("link");
-                            for (URLEntity url : status.getURLEntities()) {
-                                if (url != null) {
+                            if (status.getUserMentionEntities() != null) {
+                                builder.startArray("mention");
+                                for (UserMentionEntity user : status.getUserMentionEntities()) {
                                     builder.startObject();
-                                    if (url.getURL() != null) {
-                                        builder.field("url", url.getURL());
+                                    builder.field("id", user.getId());
+                                    builder.field("name", user.getName());
+                                    builder.field("screen_name", user.getScreenName());
+                                    builder.field("start", user.getStart());
+                                    builder.field("end", user.getEnd());
+                                    builder.endObject();
+                                }
+                                builder.endArray();
+                            }
+
+                            if (status.getRetweetCount() != -1) {
+                                builder.field("retweet_count", status.getRetweetCount());
+                            }
+
+                            if (status.isRetweet() && status.getRetweetedStatus() != null) {
+                                builder.startObject("retweet");
+                                builder.field("id", status.getRetweetedStatus().getId());
+                                if (status.getRetweetedStatus().getUser() != null) {
+                                    builder.field("user_id", status.getRetweetedStatus().getUser().getId());
+                                    builder.field("user_screen_name", status.getRetweetedStatus().getUser().getScreenName());
+                                    if (status.getRetweetedStatus().getRetweetCount() != -1) {
+                                        builder.field("retweet_count", status.getRetweetedStatus().getRetweetCount());
                                     }
-                                    if (url.getDisplayURL() != null) {
-                                        builder.field("display_url", url.getDisplayURL());
-                                    }
-                                    if (url.getExpandedURL() != null) {
-                                        builder.field("expand_url", url.getExpandedURL());
-                                    }
-                                    builder.field("start", url.getStart());
-                                    builder.field("end", url.getEnd());
+                                }
+                                builder.endObject();
+                            }
+
+                            if (status.getInReplyToStatusId() != -1) {
+                                builder.startObject("in_reply");
+                                builder.field("status", status.getInReplyToStatusId());
+                                if (status.getInReplyToUserId() != -1) {
+                                    builder.field("user_id", status.getInReplyToUserId());
+                                    builder.field("user_screen_name", status.getInReplyToScreenName());
+                                }
+                                builder.endObject();
+                            }
+
+                            if (status.getHashtagEntities() != null) {
+                                builder.startArray("hashtag");
+                                for (HashtagEntity hashtag : status.getHashtagEntities()) {
+                                    builder.startObject();
+                                    builder.field("text", hashtag.getText());
+                                    builder.field("start", hashtag.getStart());
+                                    builder.field("end", hashtag.getEnd());
+                                    builder.endObject();
+                                }
+                                builder.endArray();
+                            }
+                            if (status.getContributors() != null && status.getContributors().length > 0) {
+                                builder.array("contributor", status.getContributors());
+                            }
+                            if (status.getGeoLocation() != null) {
+                                if (geoAsArray) {
+                                    builder.startArray("location");
+                                    builder.value(status.getGeoLocation().getLongitude());
+                                    builder.value(status.getGeoLocation().getLatitude());
+                                    builder.endArray();
+                                } else {
+                                    builder.startObject("location");
+                                    builder.field("lat", status.getGeoLocation().getLatitude());
+                                    builder.field("lon", status.getGeoLocation().getLongitude());
                                     builder.endObject();
                                 }
                             }
-                            builder.endArray();
+                            if (status.getPlace() != null) {
+                                builder.startObject("place");
+                                builder.field("id", status.getPlace().getId());
+                                builder.field("name", status.getPlace().getName());
+                                builder.field("type", status.getPlace().getPlaceType());
+                                builder.field("full_name", status.getPlace().getFullName());
+                                builder.field("street_address", status.getPlace().getStreetAddress());
+                                builder.field("country", status.getPlace().getCountry());
+                                builder.field("country_code", status.getPlace().getCountryCode());
+                                builder.field("url", status.getPlace().getURL());
+                                builder.endObject();
+                            }
+                            if (status.getURLEntities() != null) {
+                                builder.startArray("link");
+                                for (URLEntity url : status.getURLEntities()) {
+                                    if (url != null) {
+                                        builder.startObject();
+                                        if (url.getURL() != null) {
+                                            builder.field("url", url.getURL());
+                                        }
+                                        if (url.getDisplayURL() != null) {
+                                            builder.field("display_url", url.getDisplayURL());
+                                        }
+                                        if (url.getExpandedURL() != null) {
+                                            builder.field("expand_url", url.getExpandedURL());
+                                        }
+                                        builder.field("start", url.getStart());
+                                        builder.field("end", url.getEnd());
+                                        builder.endObject();
+                                    }
+                                }
+                                builder.endArray();
+                            }
+
+                            builder.startObject("user");
+                            builder.field("id", status.getUser().getId());
+                            builder.field("name", status.getUser().getName());
+                            builder.field("screen_name", status.getUser().getScreenName());
+                            builder.field("location", status.getUser().getLocation());
+                            builder.field("description", status.getUser().getDescription());
+                            builder.field("profile_image_url", status.getUser().getProfileImageURL());
+                            builder.field("profile_image_url_https", status.getUser().getProfileImageURLHttps());
+
+                            builder.endObject();
+
+                            builder.endObject();
+                            if (riverStatus != RiverStatus.STOPPED && riverStatus != RiverStatus.STOPPING) {
+                                bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).source(builder));
+                            }
                         }
-
-                        builder.startObject("user");
-                        builder.field("id", status.getUser().getId());
-                        builder.field("name", status.getUser().getName());
-                        builder.field("screen_name", status.getUser().getScreenName());
-                        builder.field("location", status.getUser().getLocation());
-                        builder.field("description", status.getUser().getDescription());
-                        builder.field("profile_image_url", status.getUser().getProfileImageURL());
-                        builder.field("profile_image_url_https", status.getUser().getProfileImageURLHttps());
-
-                        builder.endObject();
-
-                        builder.endObject();
-                        bulkProcessor.add(Requests.indexRequest(indexName).type(typeName).id(Long.toString(status.getId())).source(builder));
                     }
-                }
 
-            } catch (Exception e) {
-                logger.warn("failed to construct index request", e);
+                } catch (Exception e) {
+                    logger.warn("failed to construct index request", e);
+                }
+            } else {
+                logger.debug("river is closing. ignoring tweet [{}]", status.getId());
             }
         }
 
         @Override
         public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
-            if (statusDeletionNotice.getStatusId() != -1) {
-                bulkProcessor.add(Requests.deleteRequest(indexName).type(typeName).id(Long.toString(statusDeletionNotice.getStatusId())));
+            if (riverStatus != RiverStatus.STOPPED && riverStatus != RiverStatus.STOPPING) {
+                if (statusDeletionNotice.getStatusId() != -1) {
+                    bulkProcessor.add(Requests.deleteRequest(indexName).type(typeName).id(Long.toString(statusDeletionNotice.getStatusId())));
+                }
+            } else {
+                logger.debug("river is closing. ignoring deletion of tweet [{}]", statusDeletionNotice.getStatusId());
             }
         }
 
@@ -761,5 +805,14 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
 		public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
 			statusHandler.onDeletionNotice(statusDeletionNotice);
 		}
+    }
+
+    public enum RiverStatus {
+        UNKNOWN,
+        INITIALIZED,
+        STARTING,
+        RUNNING,
+        STOPPING,
+        STOPPED;
     }
 }

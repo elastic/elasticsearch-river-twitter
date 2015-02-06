@@ -39,10 +39,7 @@ import org.elasticsearch.river.twitter.test.helper.HttpClient;
 import org.elasticsearch.river.twitter.test.helper.HttpClientResponse;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
 import twitter4j.Status;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
@@ -120,6 +117,12 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                 return response.getCount() == 0;
             }
         }, 20, TimeUnit.SECONDS), equalTo(true));
+    }
+
+    @AfterClass
+    public static void waitForThreadsToFinish() throws InterruptedException {
+        // Let's wait for 1 second for stream to close
+        Thread.sleep(1000);
     }
 
     private String getDbName() {
@@ -332,7 +335,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
             }
         }, 10, TimeUnit.SECONDS);
 
-        // The river could look started but it tooks actually some seconds
+        // The river could look started but it took actually some seconds
         // to get twitter stream up and running. So we wait 5 seconds more.
         awaitBusy(new Predicate<Object>() {
             public boolean apply(Object obj) {
@@ -384,9 +387,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
             .startObject()
                 .field("type", "twitter")
                 .startObject("twitter")
-                    .startObject("filter")
-                        .field("tracks", track)
-                    .endObject()
+                    .field("type", "sample")
                     .field("geo_as_array", true)
                .endObject()
             .endObject(), randomIntBetween(1, 10), false);
