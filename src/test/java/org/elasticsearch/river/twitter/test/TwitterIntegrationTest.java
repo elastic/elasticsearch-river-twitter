@@ -402,7 +402,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                     refresh();
                     SearchResponse response = client().prepareSearch(getDbName())
                             .setPostFilter(
-                                    FilterBuilders.geoDistanceFilter("status.location")
+                                    FilterBuilders.geoDistanceFilter("location")
                                     .point(0, 0)
                                     .distance(10000, DistanceUnit.KILOMETERS)
                             )
