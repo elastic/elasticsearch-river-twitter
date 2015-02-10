@@ -122,8 +122,12 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
 
     @AfterClass
     public static void waitForThreadsToFinish() throws InterruptedException {
-        // Let's wait for 1 second for stream to close
-        Thread.sleep(1000);
+        // Let's wait for some time for stream to close
+        awaitBusy(new Predicate<Object>() {
+            public boolean apply(Object obj) {
+                return false;
+            }
+        }, 2, TimeUnit.SECONDS);
     }
 
     private String getDbName() {
