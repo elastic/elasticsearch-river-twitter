@@ -19,6 +19,7 @@
 
 package org.elasticsearch.river.twitter.test;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
@@ -40,6 +41,7 @@ import org.elasticsearch.river.twitter.test.helper.HttpClient;
 import org.elasticsearch.river.twitter.test.helper.HttpClientResponse;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
+import org.elasticsearch.test.ElasticsearchThreadFilter;
 import org.junit.*;
 import twitter4j.Status;
 import twitter4j.Twitter;
@@ -79,6 +81,7 @@ import static org.hamcrest.Matchers.greaterThan;
         scope = ElasticsearchIntegrationTest.Scope.SUITE,
         transportClientRatio = 0.0)
 @AbstractTwitterTest.TwitterTest
+@ThreadLeakFilters(defaultFilters = true, filters = {ElasticsearchThreadFilter.class, Twitter4JThreadFilter.class})
 public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
 
     private final String track = "obama";
@@ -118,16 +121,6 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                 return response.getCount() == 0;
             }
         }, 20, TimeUnit.SECONDS), equalTo(true));
-    }
-
-    @AfterClass
-    public static void waitForThreadsToFinish() throws InterruptedException {
-        // Let's wait for some time for stream to close
-        awaitBusy(new Predicate<Object>() {
-            public boolean apply(Object obj) {
-                return false;
-            }
-        }, 2, TimeUnit.SECONDS);
     }
 
     private String getDbName() {
