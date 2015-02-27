@@ -41,7 +41,6 @@ import org.elasticsearch.river.twitter.test.helper.HttpClient;
 import org.elasticsearch.river.twitter.test.helper.HttpClientResponse;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
-import org.elasticsearch.test.ElasticsearchThreadFilter;
 import org.junit.*;
 import twitter4j.Status;
 import twitter4j.Twitter;
@@ -81,7 +80,7 @@ import static org.hamcrest.Matchers.greaterThan;
         scope = ElasticsearchIntegrationTest.Scope.SUITE,
         transportClientRatio = 0.0)
 @AbstractTwitterTest.TwitterTest
-@ThreadLeakFilters(defaultFilters = true, filters = {ElasticsearchThreadFilter.class, Twitter4JThreadFilter.class})
+@ThreadLeakFilters(defaultFilters = true, filters = {Twitter4JThreadFilter.class})
 public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
 
     private final String track = "obama";
