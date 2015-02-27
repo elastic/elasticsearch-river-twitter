@@ -34,6 +34,11 @@ public class Twitter4JThreadFilter implements ThreadFilter {
         if (threadName.contains("Twitter4J Async Dispatcher")) {
             return true;
         }
+
+        if (threadName.contains("Twitter Stream consumer")) {
+            return true;
+        }
+
         return false;
     }
 }
