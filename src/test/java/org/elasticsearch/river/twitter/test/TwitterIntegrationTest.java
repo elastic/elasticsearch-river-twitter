@@ -129,8 +129,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
     private void launchTest(XContentBuilder river, final Integer numDocs, boolean removeRiver)
             throws IOException, InterruptedException {
         logger.info("  -> Checking internet working");
-        new HttpClient("www.elasticsearch.org", 80).request("/");
-        HttpClientResponse response = new HttpClient("www.elasticsearch.org", 80).request("/");
+        HttpClientResponse response = new HttpClient("www.elastic.co", 80).request("/");
         Assert.assertThat(response.errorCode(), is(200));
 
         logger.info("  -> Create river");
