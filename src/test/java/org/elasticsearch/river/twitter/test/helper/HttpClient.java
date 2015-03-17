@@ -38,7 +38,7 @@ public class HttpClient {
 
     public HttpClient(String hostname, Integer port) {
         try {
-            baseUrl = new URL("http", hostname, port, "/");
+            baseUrl = new URL("https", hostname, port, "/");
         } catch (MalformedURLException e) {
             throw new ElasticsearchException("", e);
         }
