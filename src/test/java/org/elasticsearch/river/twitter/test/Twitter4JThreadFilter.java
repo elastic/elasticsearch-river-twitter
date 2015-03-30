@@ -39,6 +39,10 @@ public class Twitter4JThreadFilter implements ThreadFilter {
             return true;
         }
 
+        if (threadName.contains("riverClusterService#updateTask")) {
+            return true;
+        }
+
         return false;
     }
 }
