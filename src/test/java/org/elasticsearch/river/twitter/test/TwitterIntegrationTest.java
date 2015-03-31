@@ -158,7 +158,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
 
         if (removeRiver) {
             logger.info("  -> Remove river");
-            client().admin().indices().prepareDeleteMapping("_river").setType(getDbName()).get();
+            client().prepareDelete("_river", getDbName(), "_meta").get();
         }
     }
 
@@ -385,7 +385,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
         }, 1, TimeUnit.MINUTES), is(true));
 
         logger.info("  -> Remove river");
-        client().admin().indices().prepareDeleteMapping("_river").setType(getDbName()).get();
+        client().prepareDelete("_river", getDbName(), "_meta").get();
     }
 
     /**
@@ -436,6 +436,6 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
         }
 
         logger.info("  -> Remove river");
-        client().admin().indices().prepareDeleteMapping("_river").setType(getDbName()).get();
+        client().prepareDelete("_river", getDbName(), "_meta").get();
     }
 }
