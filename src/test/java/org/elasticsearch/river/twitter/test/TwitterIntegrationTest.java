@@ -81,7 +81,7 @@ import static org.hamcrest.Matchers.greaterThan;
         transportClientRatio = 0.0)
 @AbstractTwitterTest.TwitterTest
 @ThreadLeakFilters(defaultFilters = true, filters = {Twitter4JThreadFilter.class})
-public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
+public class TwitterIntegrationTest extends AbstractTwitterTest {
 
     private final String track = "obama";
 
@@ -141,7 +141,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
         index("_river", getDbName(), "_meta", river);
 
         logger.info("  -> Wait for some docs");
-        assertThat(awaitBusy(new Predicate<Object>() {
+        assertThat(awaitBusy1Second(new Predicate<Object>() {
             public boolean apply(Object obj) {
                 try {
                     refresh();
@@ -347,7 +347,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
 
         // The river could look started but it took actually some seconds
         // to get twitter stream up and running. So we wait 30 seconds more.
-        awaitBusy(new Predicate<Object>() {
+        awaitBusy1Second(new Predicate<Object>() {
             public boolean apply(Object obj) {
                 return false;
             }
@@ -371,7 +371,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
                         DateTime.now().toString());
         logger.info("  -> tweet [{}] sent: [{}]", status.getId(), status.getText());
 
-        assertThat(awaitBusy(new Predicate<Object>() {
+        assertThat(awaitBusy1Second(new Predicate<Object>() {
             public boolean apply(Object obj) {
                 try {
                     refresh();
@@ -403,7 +403,7 @@ public class TwitterIntegrationTest extends ElasticsearchIntegrationTest {
             .endObject(), randomIntBetween(1, 10), false);
 
         // We wait for geo located tweets (it could take a looooong time)
-        if (!awaitBusy(new Predicate<Object>() {
+        if (!awaitBusy1Second(new Predicate<Object>() {
             public boolean apply(Object obj) {
                 try {
                     refresh();

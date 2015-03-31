@@ -20,13 +20,16 @@
 package org.elasticsearch.river.twitter.test;
 
 import com.carrotsearch.randomizedtesting.annotations.TestGroup;
+import org.elasticsearch.common.base.Predicate;
+import org.elasticsearch.test.ElasticsearchIntegrationTest;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.concurrent.TimeUnit;
 
-public abstract class AbstractTwitterTest {
+public abstract class AbstractTwitterTest extends ElasticsearchIntegrationTest {
 
     /**
      * Annotation for tests that an internet connection and twitter credentials to run.
@@ -67,4 +70,23 @@ public abstract class AbstractTwitterTest {
      */
     public static final String SYSPROP_TWITTER = "tests.twitter";
 
+    /**
+     * Repeat a task until it returns true or after a given wait time.
+     * We use here a 1 second delay between two runs
+     * @param breakPredicate test you want to run
+     * @param maxWaitTime maximum time you want to wait
+     * @param unit time unit used for maxWaitTime and maxSleepTime
+     */
+    public static boolean awaitBusy1Second(Predicate<?> breakPredicate, long maxWaitTime, TimeUnit unit) throws InterruptedException {
+        long maxTimeInMillis = TimeUnit.MILLISECONDS.convert(maxWaitTime, unit);
+        long sleepTimeInMillis = 1000;
+        long iterations = maxTimeInMillis / sleepTimeInMillis;
+        for (int i = 0; i < iterations; i++) {
+            if (breakPredicate.apply(null)) {
+                return true;
+            }
+            Thread.sleep(sleepTimeInMillis);
+        }
+        return breakPredicate.apply(null);
+    }
 }
