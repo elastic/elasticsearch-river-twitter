@@ -120,6 +120,18 @@ public class TwitterIntegrationTest extends AbstractTwitterTest {
                 return response.getCount() == 0;
             }
         }, 20, TimeUnit.SECONDS), equalTo(true));
+
+        // Let's wait one second between two runs as it appears that Twitter4J
+        // does not close immediately so we might have Twitter API failure on the next test
+        // 420:Returned by the Search and Trends API when you are being rate limited
+        logger.info(" --> wait for Twitter4J to close");
+        awaitBusy1Second(new Predicate<Object>() {
+            @Override
+            public boolean apply(Object o) {
+                return false;
+            }
+        }, 2, TimeUnit.SECONDS);
+        logger.info(" --> ending test");
     }
 
     private String getDbName() {
@@ -410,8 +422,8 @@ public class TwitterIntegrationTest extends AbstractTwitterTest {
                     SearchResponse response = client().prepareSearch(getDbName())
                             .setPostFilter(
                                     FilterBuilders.geoDistanceFilter("location")
-                                    .point(0, 0)
-                                    .distance(10000, DistanceUnit.KILOMETERS)
+                                            .point(0, 0)
+                                            .distance(10000, DistanceUnit.KILOMETERS)
                             )
                             .addField("_source")
                             .addField("location")
