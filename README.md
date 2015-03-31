@@ -4,6 +4,9 @@ Twitter River Plugin for Elasticsearch
 The Twitter river indexes the public [twitter stream](http://dev.twitter.com/pages/streaming_api), aka the hose,
 and makes it searchable.
 
+**Rivers are [deprecated](https://www.elastic.co/blog/deprecating_rivers) and will be removed in the future.**
+Have a look at [logstash twitter input](http://www.elastic.co/guide/en/logstash/current/plugins-inputs-twitter.html).
+
 In order to install the plugin, run: 
 
 ```sh
