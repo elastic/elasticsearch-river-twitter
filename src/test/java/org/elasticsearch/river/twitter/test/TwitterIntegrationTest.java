@@ -89,9 +89,10 @@ public class TwitterIntegrationTest extends AbstractTwitterTest {
     protected Settings nodeSettings(int nodeOrdinal) {
         ImmutableSettings.Builder settings = ImmutableSettings.builder()
                 .put(super.nodeSettings(nodeOrdinal))
+                .put("path.home", createTempDir())
                 .put("plugins." + PluginsService.LOAD_PLUGIN_FROM_CLASSPATH, true);
 
-        Environment environment = new Environment();
+        Environment environment = new Environment(settings.build());
 
         // if explicit, just load it and don't load from env
         if (Strings.hasText(System.getProperty("tests.config"))) {
