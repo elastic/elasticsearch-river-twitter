@@ -32,7 +32,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.env.Environment;
-import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.indices.IndexMissingException;
@@ -422,7 +421,7 @@ public class TwitterIntegrationTest extends AbstractTwitterTest {
                     refresh();
                     SearchResponse response = client().prepareSearch(getDbName())
                             .setPostFilter(
-                                    FilterBuilders.geoDistanceFilter("location")
+                                    QueryBuilders.geoDistanceQuery("location")
                                             .point(0, 0)
                                             .distance(10000, DistanceUnit.KILOMETERS)
                             )

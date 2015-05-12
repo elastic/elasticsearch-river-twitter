@@ -34,6 +34,7 @@
     <properties>
         <twitter4j.version>4.0.3</twitter4j.version>
         <tests.twitter>false</tests.twitter>
+        <tests.security.manager>true</tests.security.manager>
     </properties>
 
     <dependencies>
