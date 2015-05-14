@@ -62,7 +62,7 @@ import static org.hamcrest.Matchers.greaterThan;
  * You must have an internet access.
  *
  * Launch it using:
- * mvn test -Dtests.twitter=true -Dtests.config=/path/to/elasticsearch.yml
+ * mvn test -Dtests.thirdparty=true -Dtests.config=/path/to/elasticsearch.yml
  *
  * where your /path/to/elasticsearch.yml contains:
 
@@ -78,7 +78,6 @@ import static org.hamcrest.Matchers.greaterThan;
 @ElasticsearchIntegrationTest.ClusterScope(
         scope = ElasticsearchIntegrationTest.Scope.SUITE,
         transportClientRatio = 0.0)
-@AbstractTwitterTest.TwitterTest
 @ThreadLeakFilters(defaultFilters = true, filters = {Twitter4JThreadFilter.class})
 public class TwitterIntegrationTest extends AbstractTwitterTest {
 
