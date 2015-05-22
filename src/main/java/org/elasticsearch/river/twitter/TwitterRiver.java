@@ -800,22 +800,22 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
     
     private class UserStreamHandler extends UserStreamAdapter {
 
-    	private final StatusHandler statusHandler = new StatusHandler(); 
-    	
-		@Override
-		public void onException(Exception ex) {
-			statusHandler.onException(ex);
-		}
+    private final StatusHandler statusHandler = new StatusHandler(); 
+ 
+        @Override
+        public void onException(Exception ex) {
+            statusHandler.onException(ex);
+        }
 
-		@Override
-		public void onStatus(Status status) {
-			statusHandler.onStatus(status);
-		}
+        @Override
+        public void onStatus(Status status) {
+            statusHandler.onStatus(status);
+        }
 
-		@Override
-		public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
-			statusHandler.onDeletionNotice(statusDeletionNotice);
-		}
+        @Override
+        public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
+            statusHandler.onDeletionNotice(statusDeletionNotice);
+        }
     }
 
     public enum RiverStatus {
