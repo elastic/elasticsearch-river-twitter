@@ -27,7 +27,6 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.base.Predicate;
 import org.elasticsearch.common.joda.time.DateTime;
-import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -85,7 +84,7 @@ public class TwitterIntegrationTest extends AbstractTwitterTest {
 
     @Override
     protected Settings nodeSettings(int nodeOrdinal) {
-        ImmutableSettings.Builder settings = ImmutableSettings.builder()
+        Settings.Builder settings = Settings.builder()
                 .put(super.nodeSettings(nodeOrdinal))
                 .put("path.home", createTempDir())
                 .put("plugins." + PluginsService.LOAD_PLUGIN_FROM_CLASSPATH, true);
@@ -103,7 +102,7 @@ public class TwitterIntegrationTest extends AbstractTwitterTest {
     @Before
     public void createEmptyRiverIndex() {
         // We want to force _river index to use 1 shard 1 replica
-        client().admin().indices().prepareCreate("_river").setSettings(ImmutableSettings.builder()
+        client().admin().indices().prepareCreate("_river").setSettings(Settings.builder()
                 .put(SETTING_NUMBER_OF_SHARDS, 1)
                 .put(SETTING_NUMBER_OF_REPLICAS, 0)).get();
     }
