@@ -10,7 +10,7 @@ Have a look at [logstash twitter input](http://www.elastic.co/guide/en/logstash/
 In order to install the plugin, run: 
 
 ```sh
-bin/plugin install elasticsearch/elasticsearch-river-twitter/2.5.0
+bin/plugin install elasticsearch/elasticsearch-river-twitter/2.6.0
 ```
 
 After installing the plugin you need to restart elasticsearch.
@@ -21,7 +21,7 @@ You need to install a version matching your Elasticsearch version:
 |------------------------|-------------------|------------------------------------------------------------------------------------------------------------------------------------|
 |    master              | Build from source | See below                                                                                                                          |
 |    es-1.x              | Build from source  | [2.7.0-SNAPSHOT](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/es-1.x/#version-270-snapshot-for-elasticsearch-1x)|
-|    es-1.6              | Build from source  | [2.6.0-SNAPSHOT](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/es-1.6/#version-260-snapshot-for-elasticsearch-16)|
+|    es-1.6              |     2.6.0         | [2.6.0](https://github.com/elastic/elasticsearch-river-twitter/tree/v2.6.0/#version-260-for-elasticsearch-16)                  |
 |    es-1.5              |     2.5.0         | [2.5.0](https://github.com/elastic/elasticsearch-river-twitter/tree/v2.5.0/#version-250-for-elasticsearch-15)                  |
 |    es-1.4              |     2.4.2         | [2.4.2](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/v2.4.2/#version-242-for-elasticsearch-14)                  |
 |    es-1.3              |     2.3.0         | [2.3.0](https://github.com/elasticsearch/elasticsearch-river-twitter/tree/v2.3.0/#version-230-for-elasticsearch-13)                  |
