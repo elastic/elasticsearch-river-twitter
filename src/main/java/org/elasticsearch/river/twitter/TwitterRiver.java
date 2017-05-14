@@ -41,8 +41,10 @@ import org.elasticsearch.river.RiverName;
 import org.elasticsearch.river.RiverSettings;
 import org.elasticsearch.threadpool.ThreadPool;
 import twitter4j.*;
+import twitter4j.conf.Configuration;
 import twitter4j.conf.ConfigurationBuilder;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -263,6 +265,20 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
                         return;
                     }
                 }
+
+                Object userlists = filterSettings.get("userlists");
+                if (userlists != null) {
+                    if (userlists instanceof List) {
+                        List<String> lUserlists = (List<String>) userlists;
+                        String[] tUserlists = lUserlists.toArray(new String[lUserlists.size()]);
+                        filterQuery.follow(getUsersListMembers(tUserlists));
+                    } else {
+                        String[] tUserlists = Strings.commaDelimitedListToStringArray(userlists.toString());
+                        filterQuery.follow(getUsersListMembers(tUserlists));
+                    }
+                    filterSet = true;
+                }
+
             } else {
                 filterQuery = null;
             }
@@ -319,6 +335,69 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
         streamType = riverStreamType;
         stream = buildTwitterStream();
     }
+    /**
+     * Get users id of each list to stream them.
+     * @param tUserlists List of user list. Should be a public list.
+     * @return
+     */
+    private long[] getUsersListMembers(String[] tUserlists) {
+        logger.debug("Fetching user id of given lists");
+        List<Long> listUserIdToFollow = new ArrayList<Long>();
+        Configuration cb = buildTwitterConfiguration();
+        Twitter twitterImpl = new TwitterFactory(cb).getInstance();
+
+        //For each list given in parameter
+        for (String listId : tUserlists) {
+            logger.debug("Adding users of list {} ",listId);
+            String[] splitListId = listId.split("/");
+            try {
+                long cursor = -1;
+                PagableResponseList<User> itUserListMembers;
+                do {
+                    itUserListMembers = twitterImpl.getUserListMembers(splitListId[0], splitListId[1], cursor);
+                    for (User member : itUserListMembers) {
+                        long userId = member.getId();
+                        listUserIdToFollow.add(userId);
+                    }
+                } while ((cursor = itUserListMembers.getNextCursor()) != 0);
+
+            } catch (TwitterException te) {
+                logger.error("Failed to get list members for : {}", listId, te);
+            }
+        }
+
+
+        //Just casting from Long to long
+        long ret[] = new long[listUserIdToFollow.size()];
+        int pos = 0;
+        for (Long userId : listUserIdToFollow) {
+            ret[pos] = userId;
+            pos++;
+        }
+        return ret;
+    }
+
+    /**
+     * Build configuration object with credentials and proxy settings
+     * @return
+     */
+    private Configuration buildTwitterConfiguration() {
+        logger.debug("creating TwitterConfigurationBuilder");
+        ConfigurationBuilder cb = new ConfigurationBuilder();
+
+        cb.setOAuthConsumerKey(oauthConsumerKey)
+                .setOAuthConsumerSecret(oauthConsumerSecret)
+                .setOAuthAccessToken(oauthAccessToken)
+                .setOAuthAccessTokenSecret(oauthAccessTokenSecret);
+
+        if (proxyHost != null) cb.setHttpProxyHost(proxyHost);
+        if (proxyPort != null) cb.setHttpProxyPort(Integer.parseInt(proxyPort));
+        if (proxyUser != null) cb.setHttpProxyUser(proxyUser);
+        if (proxyPassword != null) cb.setHttpProxyPassword(proxyPassword);
+        if (raw) cb.setJSONStoreEnabled(true);
+        return cb.build();
+
+    }
 
     /**
      * Twitter Stream Builder
@@ -326,20 +405,9 @@ public class TwitterRiver extends AbstractRiverComponent implements River {
      */
     private TwitterStream buildTwitterStream() {
         logger.debug("creating TwitterStreamFactory");
-        ConfigurationBuilder cb = new ConfigurationBuilder();
 
-        cb.setOAuthConsumerKey(oauthConsumerKey)
-            .setOAuthConsumerSecret(oauthConsumerSecret)
-            .setOAuthAccessToken(oauthAccessToken)
-            .setOAuthAccessTokenSecret(oauthAccessTokenSecret);
 
-        if (proxyHost != null) cb.setHttpProxyHost(proxyHost);
-        if (proxyPort != null) cb.setHttpProxyPort(Integer.parseInt(proxyPort));
-        if (proxyUser != null) cb.setHttpProxyUser(proxyUser);
-        if (proxyPassword != null) cb.setHttpProxyPassword(proxyPassword);
-        if (raw) cb.setJSONStoreEnabled(true);
-
-        TwitterStream stream = new TwitterStreamFactory(cb.build()).getInstance();
+        TwitterStream stream = new TwitterStreamFactory(buildTwitterConfiguration()).getInstance();
         if (streamType.equals("user")) 
         	stream.addListener(new UserStreamHandler());
         else 
